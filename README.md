@@ -26,16 +26,22 @@ Featuring conversations with:
 
 **Topics covered**: Product management, growth strategy, career development, startup advice, leadership, decision-making frameworks, and more.
 
-## 🚀 Quick Start (3 Steps)
+## 🚀 Quick Start (4 Steps)
 
-### 1. Install Dependencies
+### 1. Clone the Repository
 
 ```bash
+git clone https://github.com/traversaal-ai/lennyhub-rag.git
 cd lennyhub-rag
+```
+
+### 2. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure API Key
+### 3. Configure API Key
 
 ```bash
 # Copy example environment file
@@ -45,7 +51,7 @@ cp .env.example .env
 # OPENAI_API_KEY=your-key-here
 ```
 
-### 3. Run Automated Setup
+### 4. Run Automated Setup
 
 **Sequential Mode (Reliable)**
 ```bash
@@ -538,6 +544,12 @@ Ada Chen Rekhi, Adam Fishman, Adam Grenier, Andrew Wilkinson, Annie Duke, Brian 
 
 ---
 
-**Ready to explore?** Start with: `python setup_rag.py --quick`
+**Ready to explore?**
+
+```bash
+git clone https://github.com/traversaal-ai/lennyhub-rag.git
+cd lennyhub-rag
+python setup_rag.py --quick
+```
 
 Built with ❤️ using RAG-Anything, LightRAG, Qdrant, and Streamlit
