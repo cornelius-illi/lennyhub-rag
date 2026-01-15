@@ -27,7 +27,7 @@ from datetime import datetime
 load_dotenv()
 
 # Configuration
-MAX_TRANSCRIPTS = 100  # Process up to 100 transcripts
+MAX_TRANSCRIPTS = 23  # Process up to 23 transcripts to reach 150 total
 CONCURRENT_LIMIT = 5   # Process 5 transcripts at a time (adjust based on rate limits)
 
 # Shared counters for progress tracking
