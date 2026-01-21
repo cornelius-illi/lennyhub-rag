@@ -27,8 +27,8 @@ def auth_callback(username: str, password: str):
     """Authenticate the user."""
     import os
     # Default to admin/admin if not set in env
-    valid_username = os.getenv("CHAINLIT_USERNAME", "admin")
-    valid_password = os.getenv("CHAINLIT_PASSWORD", "admin")
+    valid_username = os.getenv("CHAINLIT_USERNAME")
+    valid_password = os.getenv("CHAINLIT_PASSWORD")
     
     if (username, password) == (valid_username, valid_password):
         return cl.User(
