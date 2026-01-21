@@ -126,8 +126,8 @@ async def rewrite_query(rag, history, current_query):
         role = "User" if msg["role"] == "user" else "Assistant"
         content = msg["content"]
         # Truncate content slightly if too long to save tokens
-        if len(content) > 200:
-            content = content[:200] + "..."
+        if len(content) > MAX_CONTENT_TRUNCATION_LENGTH:
+            content = content[:MAX_CONTENT_TRUNCATION_LENGTH] + "..."
         history_str += f"{role}: {content}\n"
         
     prompt = f"""Given the following conversation history and a new user question, rewrite the user's question to be a standalone query that captures all necessary context. 
