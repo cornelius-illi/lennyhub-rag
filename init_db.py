@@ -3,7 +3,7 @@ import asyncio
 import aiosqlite
 
 async def init_db():
-    db_path = "chainlit.db"
+    db_path = os.getenv("CHAINLIT_DB_PATH", "chainlit.db")
     print(f"Initializing database: {db_path}")
 
     async with aiosqlite.connect(db_path) as db:
