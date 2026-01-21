@@ -231,6 +231,6 @@ async def create_rag_instance():
     )
 
     # Ensure LightRAG is initialized (loads graphs/vdb)
-    await rag._ensure_lightrag_initialized()
+await rag.lightrag.initialize_storages()
 
     return rag
