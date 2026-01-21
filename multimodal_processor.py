@@ -37,9 +37,12 @@ def parse_markdown_images(content: str, file_path: Path) -> List[Path]:
     for img_path in image_paths:
         abs_path = base_dir / img_path
         if abs_path.exists():
+            print(f"  Found image: {abs_path.name}")
             absolute_paths.append(abs_path)
         else:
             print(f"Warning: Image not found at path: {abs_path}")
+            print(f"  - Base dir: {base_dir}")
+            print(f"  - Relative path from markdown: {img_path}")
     return absolute_paths
 
 
@@ -48,19 +51,24 @@ class ImageEmbedder:
     A class to handle the embedding of images using FastEmbed's CLIP models.
     """
 
-    def __init__(self, model_name: str = "clip-ViT-B-32-multilingual-v1"):
+    def __init__(self, model_name: str = "Qdrant/clip-ViT-B-32-vision"):
         """
         Initializes the ImageEmbedder and loads the specified CLIP model.
         """
         try:
-            from fastembed.embedding import ImageEmbedding
+            # Try new import structure first
+            try:
+                from fastembed.image import ImageEmbedding
+            except ImportError:
+                # Fallback for older versions or different structures
+                from fastembed.embedding import ImageEmbedding
 
             self.model = ImageEmbedding(model_name=model_name)
         except ImportError:
             print("Error: fastembed is not installed. Please run 'pip install fastembed'.")
             self.model = None
         except Exception as e:
-            print(f"Error initializing FlagEmbedding model: {e}")
+            print(f"Error initializing ImageEmbedding model: {e}")
             self.model = None
 
     def embed(self, image_paths: List[Path]) -> Optional[List[np.ndarray]]:

@@ -41,3 +41,8 @@ requests>=2.31.0
 
 fastembed
 Pillow
+
+# Persistence
+sqlalchemy
+aiofiles
+aiosqlite
