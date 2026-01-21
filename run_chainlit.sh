@@ -40,10 +40,9 @@ fi
 
 # Check if chainlit is installed
 if ! command -v chainlit &> /dev/null; then
-    echo "⚠️  Chainlit not found"
-    echo "Installing chainlit..."
-    pip install chainlit
-    echo ""
+    echo "⚠️  Chainlit not found. Please install dependencies from requirements.txt:"
+    echo "   pip install -r requirements.txt"
+    exit 1
 fi
 
 echo "Starting Chainlit app..."
