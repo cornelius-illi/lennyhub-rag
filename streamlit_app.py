@@ -27,8 +27,6 @@ load_dotenv()
 # Ensure Qdrant environment variables are set (required by LightRAG)
 if not os.getenv("QDRANT_URL"):
     os.environ["QDRANT_URL"] = "http://localhost:6333"
-if not os.getenv("QDRANT_COLLECTION_NAME"):
-    os.environ["QDRANT_COLLECTION_NAME"] = "lennyhub"
 
 # Page config
 st.set_page_config(
@@ -217,12 +215,26 @@ def check_qdrant_status():
 
             # Get collections
             collections_response = requests.get("http://localhost:6333/collections", timeout=2)
-            collections = collections_response.json().get("result", {}).get("collections", [])
+            raw_collections = collections_response.json().get("result", {}).get("collections", [])
+            
+            # Group collections by prefix to identify data sources
+            prefixes = set()
+            suffixes = ["_chunks", "_entities", "_relationships"]
+            for col in raw_collections:
+                name = col.get("name", "")
+                for suffix in suffixes:
+                    if name.endswith(suffix):
+                        prefixes.add(name[:-len(suffix)])
+                        break
+                else:
+                    # If no suffix matches, it might be a single collection
+                    prefixes.add(name)
 
             return {
                 "status": "running",
                 "version": version_info.get("version", "unknown"),
-                "collections": collections
+                "raw_collections": raw_collections,
+                "data_sources": sorted(list(prefixes))
             }
     except:
         pass
@@ -230,7 +242,8 @@ def check_qdrant_status():
     return {
         "status": "stopped",
         "version": None,
-        "collections": []
+        "raw_collections": [],
+        "data_sources": []
     }
 
 
@@ -287,21 +300,42 @@ def initialize_rag():
         return None, str(e)
 
 
-def get_transcript_stats():
-    """Get statistics about transcripts"""
-    data_dir = Path("./data")
-    transcripts = list(data_dir.glob("*.txt"))
+def get_transcript_stats(collection_name: str):
+    """Get statistics about transcripts for a given collection"""
+    # Map collection name to data directory. This handles the legacy 'lightrag_vdb'
+    # name and the desired 'lennyhub' name for the same podcast data.
+    folder_name = ""
+    if collection_name in ["lennyhub", "lightrag_vdb"]:
+        folder_name = "lennys-podcast"
+    else:
+        folder_name = collection_name  # For future sources like 'cuttlefish-blog'
+    
+    data_dir = Path(f"./data/{folder_name}")
+
+    if not data_dir.exists() or not data_dir.is_dir():
+        return {
+            "total_transcripts": 0,
+            "total_size": 0,
+            "transcripts": [],
+            "data_dir": None
+        }
+
+    # Find supported files
+    supported_extensions = ["*.txt", "*.md", "*.markdown"]
+    files = []
+    for ext in supported_extensions:
+        files.extend(data_dir.glob(ext))
 
     stats = {
-        "total_transcripts": len(transcripts),
-        "total_size": sum(f.stat().st_size for f in transcripts),
-        "transcripts": [f.stem for f in sorted(transcripts)]
+        "total_transcripts": len(files),
+        "total_size": sum(f.stat().st_size for f in files),
+        "transcripts": [f.name for f in sorted(files)], # Store full filename
+        "data_dir": data_dir
     }
-
     return stats
 
 
-def query_rag_sync(question, mode="hybrid"):
+def query_rag_sync(question, mode="hybrid", collection_name=None):
     """Query the RAG system via subprocess for complete isolation"""
     import subprocess
     import json
@@ -310,9 +344,14 @@ def query_rag_sync(question, mode="hybrid"):
         # Get the Python executable from the virtual environment
         python_exe = sys.executable
         
+        # Build command
+        command = [python_exe, "query_worker.py", question, mode]
+        if collection_name:
+            command.extend(["--collection", collection_name])
+
         # Run query_worker.py in a separate process
         result = subprocess.run(
-            [python_exe, "query_worker.py", question, mode],
+            command,
             capture_output=True,
             text=True,
             timeout=300,  # 5 minute timeout
@@ -389,14 +428,14 @@ def main():
             <div class="status-box status-success">
                 ✓ Qdrant: Running<br>
                 Version: {qdrant_status["version"]}<br>
-                Collections: {len(qdrant_status["collections"])}
+                Collections: {len(qdrant_status["raw_collections"])}
             </div>
             """, unsafe_allow_html=True)
 
             # Show collections
-            if qdrant_status["collections"]:
-                st.subheader("📊 Collections")
-                for col in qdrant_status["collections"]:
+            if qdrant_status["raw_collections"]:
+                st.subheader("📊 Raw Collections")
+                for col in qdrant_status["raw_collections"]:
                     st.text(f"• {col['name']}")
         else:
             # Show error if startup failed
@@ -427,11 +466,12 @@ def main():
         # Transcript stats
         st.markdown("---")
         st.subheader("📚 Data Statistics")
-        stats = get_transcript_stats()
+        selected_collection_name = st.session_state.get("selected_collection", "lennyhub")
+        stats = get_transcript_stats(selected_collection_name)
 
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Transcripts", stats["total_transcripts"])
+            st.metric("Local Files", stats["total_transcripts"])
         with col2:
             st.metric("Total Size", f"{stats['total_size'] / 1024 / 1024:.1f} MB")
 
@@ -444,6 +484,26 @@ def main():
         # Query mode selector
         st.markdown("---")
         st.subheader("🔍 Query Settings")
+        
+        # Collection selector
+        collection_names = qdrant_status.get("data_sources", [])
+        
+        # Ensure default collection is first if it exists
+        default_collection = os.getenv("QDRANT_COLLECTION_NAME", "lennyhub")
+        if default_collection in collection_names:
+            sorted_collections = sorted(collection_names, key=lambda x: x != default_collection)
+        else:
+            sorted_collections = sorted(collection_names)
+
+        selected_collection = st.selectbox(
+            "Data Source",
+            sorted_collections,
+            index=0 if sorted_collections else -1,
+            help="Select the data source to query against."
+        )
+        st.session_state.selected_collection = selected_collection
+
+        # Query mode selector
         query_mode = st.selectbox(
             "Search Mode",
             ["hybrid", "local", "global", "naive"],
@@ -500,7 +560,11 @@ def main():
                 with st.spinner("🤔 Thinking..."):
                     # Query with fresh RAG instance
                     start_time = datetime.now()
-                    response, error = query_rag_sync(question, mode=query_mode)
+                    response, error = query_rag_sync(
+                        question, 
+                        mode=query_mode, 
+                        collection_name=st.session_state.get("selected_collection")
+                    )
                     end_time = datetime.now()
                     duration = (end_time - start_time).total_seconds()
 
@@ -537,8 +601,8 @@ def main():
 
             with col2:
                 st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-                st.metric("Collections", len(qdrant_status["collections"]))
-                st.metric("Transcripts", stats["total_transcripts"])
+                st.metric("Raw Collections", len(qdrant_status["raw_collections"]))
+                st.metric("Data Sources", len(qdrant_status["data_sources"]))
                 st.markdown('</div>', unsafe_allow_html=True)
 
             with col3:
@@ -549,7 +613,7 @@ def main():
 
             # Collection details
             st.subheader("Collection Details")
-            for col in qdrant_status["collections"]:
+            for col in qdrant_status["raw_collections"]:
                 with st.expander(f"📦 {col['name']}"):
                     st.json(col)
         else:
@@ -557,37 +621,48 @@ def main():
 
     # Tab 3: Transcripts
     with tab3:
-        st.header("Available Transcripts")
+        st.header("Available Local Files")
 
-        # Search transcripts
-        search_term = st.text_input("🔍 Filter transcripts:", placeholder="Search by name...")
+        if not stats.get("data_dir"):
+             st.warning(f"Could not find local data directory for '{selected_collection_name}'. Looked for a folder named '{selected_collection_name}' or 'lennys-podcast' in './data/'.")
+        else:
+            # Search transcripts
+            search_term = st.text_input("🔍 Filter files:", placeholder="Search by name...")
 
-        filtered_transcripts = [t for t in stats["transcripts"] if search_term.lower() in t.lower()] if search_term else stats["transcripts"]
+            filtered_files = [t for t in stats["transcripts"] if search_term.lower() in t.lower()] if search_term else stats["transcripts"]
 
-        st.write(f"Showing {len(filtered_transcripts)} of {stats['total_transcripts']} transcripts")
+            st.write(f"Showing {len(filtered_files)} of {stats['total_transcripts']} files from `{stats['data_dir']}`")
 
-        # Display transcripts in a grid
-        cols = st.columns(3)
-        for i, transcript in enumerate(filtered_transcripts):
-            with cols[i % 3]:
-                transcript_file = Path("./data") / f"{transcript}.txt"
-                size = transcript_file.stat().st_size / 1024  # KB
+            # Display transcripts in a grid
+            if not filtered_files:
+                st.info("No files to display.")
+            else:
+                cols = st.columns(3)
+                for i, filename in enumerate(filtered_files):
+                    with cols[i % 3]:
+                        transcript_file = stats['data_dir'] / filename
+                        if not transcript_file.exists():
+                            continue
+                        size = transcript_file.stat().st_size / 1024  # KB
 
-                with st.container():
-                    st.markdown(f"**{transcript}**")
-                    st.caption(f"Size: {size:.1f} KB")
+                        with st.container():
+                            st.markdown(f"**{transcript_file.name}**")
+                            st.caption(f"Size: {size:.1f} KB")
 
-                    if st.button(f"View", key=f"view_{i}"):
-                        with st.expander(f"Content: {transcript}", expanded=True):
-                            with open(transcript_file, 'r', encoding='utf-8') as f:
-                                content = f.read()
-                                # Show first 1000 characters
-                                st.text_area(
-                                    "Preview",
-                                    content[:1000] + "..." if len(content) > 1000 else content,
-                                    height=300
-                                )
-                                st.info(f"Total length: {len(content)} characters")
+                            if st.button(f"View", key=f"view_{i}"):
+                                with st.expander(f"Content: {transcript_file.name}", expanded=True):
+                                    try:
+                                        with open(transcript_file, 'r', encoding='utf-8') as f:
+                                            content = f.read()
+                                        # Show first 1000 characters
+                                        st.text_area(
+                                            "Preview",
+                                            content[:2000] + "..." if len(content) > 2000 else content,
+                                            height=300
+                                        )
+                                        st.info(f"Total length: {len(content)} characters")
+                                    except Exception as e:
+                                        st.error(f"Could not read file: {e}")
 
 
 if __name__ == "__main__":
