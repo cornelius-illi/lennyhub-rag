@@ -102,8 +102,8 @@ async def main(message: cl.Message):
             history.append({"role": "user", "content": message.content}) # Store original query
             history.append({"role": "assistant", "content": response})
             # Keep history short-ish to avoid context window issues (e.g., last 10 turns)
-            if len(history) > 10:
-                history = history[-10:]
+            if len(history) > MAX_HISTORY_MESSAGES:
+                history = history[-MAX_HISTORY_MESSAGES:]
             cl.user_session.set("history", history)
             
             step.output = "Query Completed"
