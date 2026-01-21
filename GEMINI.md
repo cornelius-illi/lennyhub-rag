@@ -96,5 +96,6 @@ This will open the graph viewer in your browser.
     - `setup_rag.py`: Initial setup and data indexing.
     - `streamlit_app.py`: The main file for the web application.
     - `query_*.py`: A set of scripts for CLI-based querying.
-    - `build_*.py`: Scripts for building the RAG index.
+```suggestion
+99:    - `query_*.py`: A set of scripts for CLI-based querying.
 - **Testing**: While no formal testing framework is explicitly defined in the project structure, the `setup_rag.py --quick` command serves as a quick integration test to ensure the core components are working together correctly.
