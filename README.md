@@ -8,6 +8,7 @@ A production-ready RAG (Retrieval-Augmented Generation) system built on transcri
 - **🎨 Visual Web Interface**: Beautiful Streamlit app for querying and exploration
 - **🕸️ Interactive Graph Viewer**: Explore 544 people and their connections with clickable network visualization
 - **🗄️ Qdrant Vector Database**: Production-grade local vector storage (no Docker needed)
+- **🔗 Multi-Source & Multimodal Ready**: Strategy in place for multiple data sources (e.g., blogs) and content types (text, images).
 - **📊 Knowledge Graph RAG**: Advanced retrieval with LightRAG entity and relationship extraction
 - **🔍 Multiple Search Modes**: Hybrid, local, global, and naive search strategies
 - **📚 297 Podcast Transcripts**: Comprehensive knowledge base from industry leaders
@@ -54,28 +55,17 @@ cp .env.example .env
 
 ### 4. Run Automated Setup
 
-**Sequential Mode (Reliable)**
+The setup script now supports indexing different data sources into specific collections.
+
+**Example: Indexing the default Lenny's Podcast transcripts:**
 ```bash
-# Process first 10 transcripts (quick test - 5 min)
-python setup_rag.py --quick
-
-# Process first 50 transcripts (30-40 min)
-python setup_rag.py --max 50
-
-# Process all 297 transcripts (2-3 hours)
-python setup_rag.py
+# Process all 297 transcripts into the 'lennys-podcast' collection
+python setup_rag.py --source-dir data/lennys-podcast --collection-name lennys-podcast --parallel
 ```
 
-**Parallel Mode (5-10x Faster!)** ⚡
+**Quick Test (first 10 transcripts):**
 ```bash
-# Process 50 transcripts in parallel (6-8 min)
-python setup_rag.py --max 50 --parallel
-
-# All 297 transcripts in parallel (25-35 min)
-python setup_rag.py --parallel
-
-# Custom workers (default: 5, max: 10)
-python setup_rag.py --parallel --workers 8
+python setup_rag.py --source-dir data/lennys-podcast --collection-name lennys-podcast --quick
 ```
 
 **What this does:**
@@ -235,7 +225,7 @@ python query_rag_with_chunks.py "How do you build a great product team?"
 ```
 lennyhub-rag/
 ├── 📊 Data & Storage
-│   ├── data/                         # 297 podcast transcripts
+│   ├── data/                         # Source data (e.g., lennys-podcast/, other-blogs/)
 │   ├── rag_storage/                  # Knowledge graph & metadata
 │   └── qdrant_storage/               # Vector embeddings (local DB)
 │

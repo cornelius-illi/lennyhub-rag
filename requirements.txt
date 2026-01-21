@@ -38,3 +38,6 @@ streamlit>=1.28.0
 
 # HTTP requests for health checks
 requests>=2.31.0
+
+fastembed
+Pillow

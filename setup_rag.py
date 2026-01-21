@@ -171,7 +171,7 @@ total_to_process = 0
 lock = asyncio.Lock()
 
 
-async def process_single_transcript_parallel(rag, transcript_file, semaphore):
+async def process_single_transcript_parallel(rag, transcript_file, semaphore, multimodal=False, image_embedder=None):
     """Process a single transcript with semaphore control (parallel mode)"""
     global processed_count
 
@@ -183,18 +183,31 @@ async def process_single_transcript_parallel(rag, transcript_file, semaphore):
             with open(transcript_file, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-            # Insert into RAG system
-            content_list = [{
-                "type": "text",
-                "text": content,
-                "page_idx": 0
-            }]
+            # Prepare content for RAG
+            content_list = [{"type": "text", "text": content, "page_idx": 0}]
+            image_embeddings = None
 
-            await rag.insert_content_list(
-                content_list=content_list,
-                file_path=str(transcript_file),
-                doc_id=doc_id
-            )
+            # Handle multimodal processing for markdown files
+            if multimodal and transcript_file.suffix.lower() == ".md" and image_embedder:
+                from multimodal_processor import parse_markdown_images
+                image_paths = parse_markdown_images(content, transcript_file)
+                if image_paths:
+                    print(f"  Found {len(image_paths)} images in {transcript_file.name}")
+                    image_embeddings = image_embedder.embed(image_paths)
+
+            # Prepare kwargs for insertion
+            insert_kwargs = {
+                "content_list": content_list,
+                "file_path": str(transcript_file),
+                "doc_id": doc_id
+            }
+            if image_embeddings:
+                # Assuming the RAG framework can handle a key for image vectors
+                # This part might need adjustment based on raganything's API
+                insert_kwargs["image_embeddings"] = image_embeddings
+
+            # Insert into RAG system
+            await rag.insert_content_list(**insert_kwargs)
 
             # Update progress counter
             async with lock:
@@ -209,7 +222,7 @@ async def process_single_transcript_parallel(rag, transcript_file, semaphore):
             return False, transcript_file.name
 
 
-async def build_rag_parallel(max_transcripts=None, workers=5):
+async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, collection_name=None, multimodal=False):
     """Build RAG system with parallel processing"""
     global total_to_process, processed_count
 
@@ -246,7 +259,11 @@ async def build_rag_parallel(max_transcripts=None, workers=5):
         return await openai_embed(texts, model="text-embedding-3-small")
 
     # Get Qdrant configuration
-    lightrag_kwargs = get_lightrag_kwargs(verbose=False)
+    lightrag_kwargs = get_lightrag_kwargs(
+        collection_name=collection_name,
+        multimodal=multimodal,
+        verbose=False
+    )
 
     # Initialize RAG system
     print("Initializing RAG system...")
@@ -265,12 +282,25 @@ async def build_rag_parallel(max_transcripts=None, workers=5):
     await rag._ensure_lightrag_initialized()
 
     # Get all transcript files
-    transcript_dir = Path("./data")
-    all_files = sorted(list(transcript_dir.glob("*.txt")))
+    # Get all supported document files
+    transcript_dir = Path(source_dir)
+    supported_extensions = [".txt", ".md", ".markdown"]
+    all_files = []
+    for ext in supported_extensions:
+        all_files.extend(transcript_dir.glob(f"*{ext}"))
+    all_files = sorted([f for f in all_files if not f.name.startswith('.')])
+
+    # Initialize multimodal components if needed
+    image_embedder = None
+    if multimodal:
+        from multimodal_processor import get_image_embedder
+        print("Initializing multimodal image embedder...")
+        image_embedder = get_image_embedder()
+        # Enable image processing in RAG-Anything
+        rag.config.enable_image_processing = True
 
     # Get already processed documents
     already_processed = get_already_processed_docs()
-    print(f"Already processed: {len(already_processed)} transcripts")
 
     # Filter out already processed
     transcript_files = []
@@ -301,7 +331,7 @@ async def build_rag_parallel(max_transcripts=None, workers=5):
 
     # Process all transcripts in parallel
     tasks = [
-        process_single_transcript_parallel(rag, file, semaphore)
+        process_single_transcript_parallel(rag, file, semaphore, multimodal, image_embedder)
         for file in transcript_files
     ]
 
@@ -332,7 +362,7 @@ async def build_rag_parallel(max_transcripts=None, workers=5):
     return successful > 0
 
 
-async def build_rag(max_transcripts=None):
+async def build_rag(max_transcripts=None, source_dir=None, collection_name=None, multimodal=False):
     """Build RAG system with sequential processing"""
     from raganything import RAGAnything, RAGAnythingConfig
     from lightrag.llm.openai import openai_complete_if_cache, openai_embed
@@ -365,7 +395,11 @@ async def build_rag(max_transcripts=None):
         return await openai_embed(texts, model="text-embedding-3-small")
 
     # Get Qdrant configuration
-    lightrag_kwargs = get_lightrag_kwargs(verbose=False)
+    lightrag_kwargs = get_lightrag_kwargs(
+        collection_name=collection_name,
+        multimodal=multimodal,
+        verbose=False
+    )
 
     # Initialize RAG system
     print("Initializing RAG system...")
@@ -381,8 +415,22 @@ async def build_rag(max_transcripts=None):
     )
 
     # Get transcript files
-    transcript_dir = Path("./data")
-    all_files = sorted(list(transcript_dir.glob("*.txt")))
+    # Get all supported document files
+    transcript_dir = Path(source_dir)
+    supported_extensions = [".txt", ".md", ".markdown"]
+    all_files = []
+    for ext in supported_extensions:
+        all_files.extend(transcript_dir.glob(f"*{ext}"))
+    all_files = sorted([f for f in all_files if not f.name.startswith('.')])
+
+    # Initialize multimodal components if needed
+    image_embedder = None
+    if multimodal:
+        from multimodal_processor import get_image_embedder
+        print("Initializing multimodal image embedder...")
+        image_embedder = get_image_embedder()
+        # Enable image processing in RAG-Anything
+        rag.config.enable_image_processing = True
 
     # Get already processed documents
     already_processed = get_already_processed_docs()
@@ -398,10 +446,10 @@ async def build_rag(max_transcripts=None):
     if max_transcripts:
         transcript_files = transcript_files[:max_transcripts]
 
-    print(f"\nFound {len(transcript_files)} transcript(s) to process")
+    print(f"\nFound {len(transcript_files)} document(s) to process")
 
     if len(transcript_files) == 0:
-        print("\n✓ All transcripts already processed!")
+        print("\n✓ All documents already processed!")
         print(f"Total documents in system: {len(already_processed)}")
         rag.close()
         return True
@@ -410,7 +458,7 @@ async def build_rag(max_transcripts=None):
     await rag._ensure_lightrag_initialized()
 
     # Process each transcript sequentially
-    print("\nProcessing transcripts sequentially...")
+    print("\nProcessing documents sequentially...")
     for i, transcript_file in enumerate(transcript_files, 1):
         print(f"\n[{i}/{len(transcript_files)}] Processing: {transcript_file.name}")
 
@@ -418,18 +466,31 @@ async def build_rag(max_transcripts=None):
         with open(transcript_file, 'r', encoding='utf-8') as f:
             content = f.read()
 
-        # Insert into RAG system
-        content_list = [{
-            "type": "text",
-            "text": content,
-            "page_idx": 0
-        }]
+        # Prepare content for RAG
+        content_list = [{"type": "text", "text": content, "page_idx": 0}]
+        image_embeddings = None
 
-        await rag.insert_content_list(
-            content_list=content_list,
-            file_path=str(transcript_file),
-            doc_id=f"transcript-{transcript_file.stem}"
-        )
+        # Handle multimodal processing for markdown files
+        if multimodal and transcript_file.suffix.lower() in [".md", ".markdown"] and image_embedder:
+            from multimodal_processor import parse_markdown_images
+            image_paths = parse_markdown_images(content, transcript_file)
+            if image_paths:
+                print(f"  Found {len(image_paths)} images in {transcript_file.name}")
+                image_embeddings = image_embedder.embed(image_paths)
+
+        # Prepare kwargs for insertion
+        insert_kwargs = {
+            "content_list": content_list,
+            "file_path": str(transcript_file),
+            "doc_id": f"transcript-{transcript_file.stem}"
+        }
+        if image_embeddings:
+            # This is a placeholder for how raganything might accept image embeddings
+            # The actual key ('image_embeddings') might need to be different
+            insert_kwargs["image_vectors"] = image_embeddings
+
+        # Insert into RAG system
+        await rag.insert_content_list(**insert_kwargs)
         print(f"✓ Successfully indexed!")
 
     print_header("RAG System Built Successfully!")
@@ -478,6 +539,23 @@ async def main():
         type=int,
         default=5,
         help="Number of concurrent workers for parallel mode (default: 5, max: 10)"
+    )
+    parser.add_argument(
+        "--source-dir",
+        type=str,
+        default="./data/lennys-podcast",
+        help="Path to the directory containing the source documents"
+    )
+    parser.add_argument(
+        "--collection-name",
+        type=str,
+        default="lennyhub",
+        help="Name for the Qdrant collection"
+    )
+    parser.add_argument(
+        "--multimodal",
+        action="store_true",
+        help="Enable multimodal indexing for text and images"
     )
     args = parser.parse_args()
 
@@ -538,9 +616,20 @@ async def main():
 
     try:
         if args.parallel:
-            success = await build_rag_parallel(max_transcripts=max_transcripts, workers=args.workers)
+            success = await build_rag_parallel(
+                max_transcripts=max_transcripts,
+                workers=args.workers,
+                source_dir=args.source_dir,
+                collection_name=args.collection_name,
+                multimodal=args.multimodal
+            )
         else:
-            success = await build_rag(max_transcripts=max_transcripts)
+            success = await build_rag(
+                max_transcripts=max_transcripts,
+                source_dir=args.source_dir,
+                collection_name=args.collection_name,
+                multimodal=args.multimodal
+            )
 
         if not success:
             return 1

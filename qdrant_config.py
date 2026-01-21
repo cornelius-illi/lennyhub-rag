@@ -51,6 +51,7 @@ def get_lightrag_kwargs(
     use_qdrant: Optional[bool] = None,
     qdrant_url: Optional[str] = None,
     collection_name: Optional[str] = None,
+    multimodal: bool = False,
     verbose: bool = True
 ) -> Dict[str, Any]:
     """
@@ -60,6 +61,7 @@ def get_lightrag_kwargs(
         use_qdrant: Override USE_QDRANT env var (True/False/None for auto)
         qdrant_url: Override QDRANT_URL env var
         collection_name: Override QDRANT_COLLECTION_NAME env var
+        multimodal: If True, configure for multimodal (text + image) vectors
         verbose: Print configuration info
 
     Returns:
@@ -95,13 +97,27 @@ def get_lightrag_kwargs(
         print(f"✓ Using Qdrant vector database")
         print(f"  URL: {url}")
         print(f"  Collection: {collection}")
+        if multimodal:
+            print("  Mode: Multimodal (text + image vectors)")
+
+    # Base configuration
+    vector_db_kwargs = {
+        "url": url,
+        "collection_name": collection
+    }
+
+    # Add multimodal configuration if specified
+    if multimodal:
+        from qdrant_client.http.models import Distance, VectorParams
+
+        vector_db_kwargs["vector_params"] = {
+            "text": VectorParams(size=1536, distance=Distance.COSINE),
+            "image": VectorParams(size=512, distance=Distance.COSINE),
+        }
 
     lightrag_kwargs = {
         "vector_storage": "QdrantVectorDBStorage",
-        "vector_db_storage_cls_kwargs": {
-            "url": url,
-            "collection_name": collection
-        }
+        "vector_db_storage_cls_kwargs": vector_db_kwargs
     }
 
     return lightrag_kwargs
