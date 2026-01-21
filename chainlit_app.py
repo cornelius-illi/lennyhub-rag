@@ -141,21 +141,8 @@ User's New Question: {current_query}
 
 Standalone Query:"""
 
-    # We use the RAG's internal LLM function. 
-    # Validating if we can access it directly or via a wrapper.
-    # rag.llm_model_func is available from our create_rag_instance definition.
-    
     try:
-        # We need to call the llm function. 
-        # The rag instance stores `llm_model_func`.
-        # Note: raganything might wrap it, but we passed it in `create_rag_instance`.
-        # Inspecting the file `chainlit_app.py`, we defined `llm_model_func` locally inside `create_rag_instance`, 
-        # so it's not directly a method on `rag` unless `RAGAnything` exposes it.
-        #
-        # Looking at `RAGAnything` class standard usage (from `multimodal_processor.py` or `query_rag.py`), 
-        # it usually assigns the function to `self.llm_model_func`.
-        # Let's assume `rag.llm_model_func` is accessible.
-        
+        # The RAG instance's llm_model_func is used to rewrite the query.
         rewritten = await rag.llm_model_func(prompt)
         return rewritten.strip()
     except Exception as e:
