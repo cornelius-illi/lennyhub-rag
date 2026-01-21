@@ -40,12 +40,12 @@ The `setup_rag.py` script automates the process of setting up the Qdrant databas
 -   **Quick setup (recommended for first-time use):**
     This processes a small subset of transcripts to quickly verify the setup.
     ```bash
-    python setup_rag.py --quick
+    python setup_rag.py --source-dir data/lennys-podcast --collection-name lennys-podcast --quick
     ```
 -   **Full setup (parallel mode for speed):**
     This processes all transcripts. The `--parallel` flag significantly speeds up the process.
     ```bash
-    python setup_rag.py --parallel
+    python setup_rag.py --source-dir data/lennys-podcast --collection-name lennys-podcast --parallel
     ```
 
 ## 4. Running the Application
