@@ -10,12 +10,25 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+venv/
+env/
+ENV/
+.venv/
 
 # RAG Storage
 rag_storage/
 
 # Qdrant Storage
 qdrant_storage/
+qdrant.pid
+
+# SQLite Databases
+*.db
+*.db-shm
+*.db-wal
+
+# Chainlit
+.chainlit/
 
 # Logs
 *.log
@@ -31,26 +44,3 @@ build_log.txt
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
-
-# Virtual environments
-venv/
-env/
-ENV/
-.venv/
-build_log.txt
-rag_storage/kv_store_doc_status.json
-rag_storage/kv_store_entity_chunks.json
-rag_storage/kv_store_full_docs.json
-rag_storage/kv_store_full_entities.json
-rag_storage/kv_store_full_relations.json
-rag_storage/kv_store_llm_response_cache.json
-rag_storage/kv_store_relation_chunks.json
-rag_storage/kv_store_text_chunks.json
-rag_storage/graph_chunk_entity_relation.graphml
-rag_storage/kv_store_doc_status.json
-rag_storage/kv_store_entity_chunks.json
-rag_storage/kv_store_full_docs.json
-rag_storage/
-qdrant_storage/
-qdrant.pid
-.DS_Store

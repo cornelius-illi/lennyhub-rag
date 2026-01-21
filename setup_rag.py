@@ -201,10 +201,10 @@ async def process_single_transcript_parallel(rag, transcript_file, semaphore, mu
                 "file_path": str(transcript_file),
                 "doc_id": doc_id
             }
-            if image_embeddings:
-                # Assuming the RAG framework can handle a key for image vectors
-                # This part might need adjustment based on raganything's API
-                insert_kwargs["image_embeddings"] = image_embeddings
+            # if image_embeddings:
+            #     # Note: raganything insert_content_list does not support image_embeddings kwarg directly
+            #     # insert_kwargs["image_embeddings"] = image_embeddings
+            #     pass
 
             # Insert into RAG system
             await rag.insert_content_list(**insert_kwargs)
@@ -484,10 +484,11 @@ async def build_rag(max_transcripts=None, source_dir=None, collection_name=None,
             "file_path": str(transcript_file),
             "doc_id": f"transcript-{transcript_file.stem}"
         }
-        if image_embeddings:
-            # This is a placeholder for how raganything might accept image embeddings
-            # The actual key ('image_embeddings') might need to be different
-            insert_kwargs["image_vectors"] = image_embeddings
+        # if image_embeddings:
+        #     # This is a placeholder for how raganything might accept image embeddings
+        #     # The actual key ('image_embeddings') might need to be different
+        #     # insert_kwargs["image_vectors"] = image_embeddings
+        #     pass
 
         # Insert into RAG system
         await rag.insert_content_list(**insert_kwargs)
