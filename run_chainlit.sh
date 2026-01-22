@@ -19,23 +19,23 @@ else
     echo "Would you like to start Qdrant? (y/n)"
     read -r response
     if [[ "$response" =~ ^[Yy]$ ]]; then
-        ./start_qdrant.sh
+        scripts/qdrant/start_qdrant.sh
         echo ""
     else
-        echo "You can start Qdrant later with: ./start_qdrant.sh"
+        echo "You can start Qdrant later with: scripts/qdrant/start_qdrant.sh"
         echo ""
     fi
 fi
 
 
 # Initialize SQLite database schema
-if [ ! -f "chainlit.db" ]; then
+if [ ! -f "apps/chat/chainlit.db" ]; then
     echo "Initializing database schema..."
-    python init_db.py
+    python src/tools/init_db.py
 else
     # Always run init_db in case of schema updates (idempotent)
     echo "Verifying database schema..."
-    python init_db.py
+    python src/tools/init_db.py
 fi
 
 # Check if chainlit is installed
@@ -49,4 +49,4 @@ echo "Starting Chainlit app..."
 echo ""
 
 # Run Chainlit
-chainlit run chainlit_app.py -w
+chainlit run apps/chat/app.py -w

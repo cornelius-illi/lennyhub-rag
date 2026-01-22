@@ -35,17 +35,17 @@ The project requires an OpenAI API key to function.
 
 ## 3. Initial Setup and Data Indexing
 
-The `setup_rag.py` script automates the process of setting up the Qdrant database and indexing the podcast transcripts.
+The `scripts/setup_rag.py` script automates the process of setting up the Qdrant database and indexing the podcast transcripts.
 
 -   **Quick setup (recommended for first-time use):**
     This processes a small subset of transcripts to quickly verify the setup.
     ```bash
-    python setup_rag.py --source-dir data/lennys-podcast --quick
+    python scripts/setup_rag.py --source-dir data/lennys-podcast --quick
     ```
 -   **Full setup (parallel mode for speed):**
     This processes all transcripts. The `--parallel` flag significantly speeds up the process.
     ```bash
-    python setup_rag.py --source-dir data/lennys-podcast --parallel
+    python scripts/setup_rag.py --source-dir data/lennys-podcast --parallel
     ```
 
 ## 4. Running the Application
@@ -64,15 +64,15 @@ For command-line querying, you can use the following scripts:
 
 -   **Interactive mode:**
     ```bash
-    python query_rag.py --interactive
+    python src/cli/query.py --interactive
     ```
 -   **Single query:**
     ```bash
-    python query_rag.py "What are the best practices for user onboarding?"
+    python src/cli/query.py "What are the best practices for user onboarding?"
     ```
 -   **Query with sources:**
     ```bash
-    python query_with_sources.py "How do you build a great product team?"
+    python src/cli/sources.py "How do you build a great product team?"
     ```
 
 ## 5. Knowledge Graph Viewer
@@ -80,18 +80,23 @@ For command-line querying, you can use the following scripts:
 To explore the knowledge graph of people and their connections, you can serve the interactive visualization:
 
 ```bash
-python serve_graph.py
+python apps/explorer/server.py
 ```
 
-This will open the graph viewer in your browser.
+This will open the graph viewer in your browser at `http://localhost:8000/viewer.html`.
+
+# Repository Structure
+
+- **`apps/`**: Interactive applications (Chat, Explorer).
+- **`src/`**: Shared core logic (`core/`), CLI tools (`cli/`), and maintenance utilities (`tools/`).
+- **`scripts/`**: Setup, indexing, and infrastructure management (Qdrant).
+- **`docs/`**: Consolidated user and technical documentation.
+- **`storage/`**: Unified persistent storage for the RAG system and vector database.
 
 # Development Conventions
 
 - **Code Style**: The project follows standard Python conventions (PEP 8).
-- **Dependencies**: Python packages are managed through `requirements.txt`.
+- **Dependencies**: Managed through `pyproject.toml` and `requirements.txt`.
 - **Configuration**: Environment variables (e.g., API keys, Qdrant settings) are managed in a `.env` file.
-- **Modularity**: The project is structured with separate scripts for different concerns:
-    - `setup_rag.py`: Initial setup and data indexing.
-    - `chainlit_app.py`: The main file for the web application.
-    - `query_*.py`: A set of scripts for CLI-based querying.
-- **Testing**: While no formal testing framework is explicitly defined in the project structure, the `setup_rag.py --quick` command serves as a quick integration test to ensure the core components are working together correctly.
+- **Common Engine**: All tools use the shared RAG engine in `src/core/engine.py` for consistent behavior.
+- **Testing**: Use `python scripts/setup_rag.py --quick` as an integration test to verify the core components.

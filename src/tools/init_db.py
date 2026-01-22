@@ -3,8 +3,15 @@ import asyncio
 import aiosqlite
 import os
 
+from pathlib import Path
+import sys
+
+# Add project root to path
+root_dir = Path(__file__).parent.parent.parent
+
 async def init_db():
-    db_path = os.getenv("CHAINLIT_DB_PATH", "chainlit.db")
+    default_db_path = root_dir / "apps/chat/chainlit.db"
+    db_path = os.getenv("CHAINLIT_DB_PATH", str(default_db_path))
     print(f"Initializing database: {db_path}")
 
     async with aiosqlite.connect(db_path) as db:

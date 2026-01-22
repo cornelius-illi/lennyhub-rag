@@ -28,6 +28,13 @@ from dotenv import load_dotenv
 import requests
 from datetime import datetime
 
+# Add project root to path
+root_dir = Path(__file__).parent.parent
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+
+from src.core.config import get_lightrag_kwargs
+
 # Load environment variables
 load_dotenv()
 
@@ -54,11 +61,10 @@ def check_qdrant_installed():
 def install_qdrant():
     """Install Qdrant binary"""
     print("Installing Qdrant locally...")
-    install_script = Path("./install_qdrant_local.sh")
+    install_script = root_dir / "scripts/qdrant/install_qdrant_local.sh"
 
     if not install_script.exists():
-        print("ERROR: install_qdrant_local.sh not found!")
-        print("Please ensure you're running this script from the lennyhub-rag directory.")
+        print(f"ERROR: {install_script} not found!")
         return False
 
     # Make script executable
@@ -93,10 +99,10 @@ def is_qdrant_running():
 def start_qdrant():
     """Start Qdrant server"""
     print("Starting Qdrant server...")
-    start_script = Path("./start_qdrant.sh")
+    start_script = root_dir / "scripts/qdrant/start_qdrant.sh"
 
     if not start_script.exists():
-        print("ERROR: start_qdrant.sh not found!")
+        print(f"ERROR: {start_script} not found!")
         return False
 
     # Make script executable
@@ -188,7 +194,7 @@ async def process_single_transcript_parallel(rag, transcript_file, semaphore, mu
             
             # Handle multimodal processing for markdown files
             if multimodal and transcript_file.suffix.lower() in [".md", ".markdown"]:
-                from multimodal_processor import parse_markdown_images
+                from src.core.multimodal import parse_markdown_images
                 image_paths = parse_markdown_images(content, transcript_file)
                 if image_paths:
                     print(f"  Found {len(image_paths)} images in {transcript_file.name}")
@@ -229,16 +235,15 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, m
     from raganything import RAGAnything, RAGAnythingConfig
     from lightrag.llm.openai import openai_complete_if_cache, openai_embed
     from lightrag.utils import EmbeddingFunc
-    from qdrant_config import get_lightrag_kwargs
     import numpy as np
 
     start_time = datetime.now()
 
     # Configure RAG system
-    working_dir = "./rag_storage"
+    working_dir = root_dir / "storage/rag"
     print(f"Using working directory: {working_dir}")
     config = RAGAnythingConfig(
-        working_dir="./rag_storage",
+        working_dir=str(working_dir),
         parser="mineru",
         enable_image_processing=multimodal,
         enable_table_processing=multimodal,
@@ -262,7 +267,6 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, m
 
     # Get Qdrant configuration
     lightrag_kwargs = get_lightrag_kwargs(
-        
         multimodal=multimodal,
         verbose=False
     )
@@ -283,7 +287,6 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, m
     # Ensure LightRAG is initialized
     await rag._ensure_lightrag_initialized()
 
-    # Get all transcript files
     # Get all supported document files
     transcript_dir = Path(source_dir)
     supported_extensions = [".txt", ".md", ".markdown"]
@@ -295,7 +298,7 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, m
     # Initialize multimodal components if needed
     image_embedder = None
     if multimodal:
-        from multimodal_processor import get_image_embedder
+        from src.core.multimodal import get_image_embedder
         print("Initializing multimodal image embedder...")
         image_embedder = get_image_embedder()
         # Enable image processing in RAG-Anything
@@ -369,14 +372,13 @@ async def build_rag(max_transcripts=None, source_dir=None, multimodal=False):
     from raganything import RAGAnything, RAGAnythingConfig
     from lightrag.llm.openai import openai_complete_if_cache, openai_embed
     from lightrag.utils import EmbeddingFunc
-    from qdrant_config import get_lightrag_kwargs
     import numpy as np
 
     # Configure RAG system
-    working_dir = "./rag_storage"
+    working_dir = root_dir / "storage/rag"
     print(f"Using working directory: {working_dir}")
     config = RAGAnythingConfig(
-        working_dir="./rag_storage",
+        working_dir=str(working_dir),
         parser="mineru",
         enable_image_processing=multimodal,
         enable_table_processing=multimodal,
@@ -400,7 +402,6 @@ async def build_rag(max_transcripts=None, source_dir=None, multimodal=False):
 
     # Get Qdrant configuration
     lightrag_kwargs = get_lightrag_kwargs(
-        
         multimodal=multimodal,
         verbose=False
     )
@@ -418,7 +419,6 @@ async def build_rag(max_transcripts=None, source_dir=None, multimodal=False):
         lightrag_kwargs=lightrag_kwargs
     )
 
-    # Get transcript files
     # Get all supported document files
     transcript_dir = Path(source_dir)
     supported_extensions = [".txt", ".md", ".markdown"]
@@ -430,7 +430,7 @@ async def build_rag(max_transcripts=None, source_dir=None, multimodal=False):
     # Initialize multimodal components if needed
     image_embedder = None
     if multimodal:
-        from multimodal_processor import get_image_embedder
+        from src.core.multimodal import get_image_embedder
         print("Initializing multimodal image embedder...")
         image_embedder = get_image_embedder()
         # Enable image processing in RAG-Anything
@@ -475,7 +475,7 @@ async def build_rag(max_transcripts=None, source_dir=None, multimodal=False):
         
         # Handle multimodal processing for markdown files
         if multimodal and transcript_file.suffix.lower() in [".md", ".markdown"]:
-            from multimodal_processor import parse_markdown_images
+            from src.core.multimodal import parse_markdown_images
             image_paths = parse_markdown_images(content, transcript_file)
             if image_paths:
                 print(f"  Found {len(image_paths)} images in {transcript_file.name}")
@@ -585,7 +585,7 @@ async def main():
         print("Qdrant not found. Installing...")
         if not install_qdrant():
             print("\nSetup failed! Please install Qdrant manually:")
-            print("  ./install_qdrant_local.sh")
+            print("  scripts/qdrant/install_qdrant_local.sh")
             return 1
     else:
         print("✓ Qdrant is already installed!")
@@ -640,14 +640,14 @@ async def main():
     print("Your RAG system is ready to use!\n")
     print("Next steps:")
     print("  1. Query the system:")
-    print('     python query_rag.py "Your question here"')
-    print("     python query_rag.py --interactive\n")
+    print('     python src/cli/query.py "Your question here"')
+    print("     python src/cli/query.py --interactive\n")
     print("  2. Launch web interface:")
     print("     ./run_chainlit.sh\n")
     print("  3. Query with sources:")
-    print('     python query_with_sources.py "Your question"\n')
+    print('     python src/cli/sources.py "Your question"\n')
     print("  4. Check Qdrant status:")
-    print("     ./status_qdrant.sh")
+    print("     scripts/qdrant/status_qdrant.sh")
     print("     curl http://localhost:6333/\n")
     print("  5. View dashboard:")
     print("     http://localhost:6333/dashboard\n")

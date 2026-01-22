@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Configuration
 PORT = 8000
-GRAPH_FILE = "graph_viewer_simple.html"
+GRAPH_FILE = "viewer.html"
 
 class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):

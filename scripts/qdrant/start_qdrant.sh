@@ -5,17 +5,21 @@
 
 set -e
 
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR="$( cd "$SCRIPT_DIR/../.." && pwd )"
+
 QDRANT_BIN="$HOME/.qdrant/qdrant"
-QDRANT_STORAGE="./qdrant_storage"
-QDRANT_PID_FILE="./qdrant.pid"
-QDRANT_LOG_FILE="./qdrant.log"
+QDRANT_STORAGE="$ROOT_DIR/storage/qdrant"
+QDRANT_PID_FILE="$QDRANT_STORAGE/qdrant.pid"
+QDRANT_LOG_FILE="$QDRANT_STORAGE/qdrant.log"
+CONFIG_PATH="$ROOT_DIR/qdrant_config.yaml"
 
 # Check if Qdrant is installed
 if [ ! -f "$QDRANT_BIN" ]; then
     echo "❌ Qdrant not found at: $QDRANT_BIN"
     echo ""
     echo "Please install Qdrant first:"
-    echo "  ./install_qdrant_local.sh"
+    echo "  $SCRIPT_DIR/install_qdrant_local.sh"
     exit 1
 fi
 
@@ -45,7 +49,7 @@ echo ""
 
 # Start Qdrant in background
 nohup "$QDRANT_BIN" \
-    --config-path "./qdrant_config.yaml" \
+    --config-path "$CONFIG_PATH" \
     > "$QDRANT_LOG_FILE" 2>&1 &
 
 QDRANT_PID=$!
@@ -75,7 +79,7 @@ if ps -p "$QDRANT_PID" > /dev/null 2>&1; then
         echo "  tail -f $QDRANT_LOG_FILE"
         echo ""
         echo "To stop:"
-        echo "  ./stop_qdrant.sh"
+        echo "  $SCRIPT_DIR/stop_qdrant.sh"
     else
         echo "⚠️  Qdrant started but health check failed"
         echo "Check logs: tail -f $QDRANT_LOG_FILE"

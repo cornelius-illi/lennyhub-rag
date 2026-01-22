@@ -87,8 +87,8 @@ def get_lightrag_kwargs(
         print(f"\n⚠️  Qdrant not accessible at {url}")
         print("   Falling back to NanoVectorDB (default JSON storage)")
         print("   To use Qdrant, ensure it's running:")
-        print("   - Run: ./start_qdrant.sh")
-        print("   - Or install first: ./install_qdrant_local.sh")
+        print("   - Run: scripts/qdrant/start_qdrant.sh")
+        print("   - Or install first: scripts/qdrant/install_qdrant_local.sh")
         print("   - Or set USE_QDRANT=false in .env to disable this warning\n")
         return {}
 

@@ -1,3 +1,338 @@
+# Quick Setup Guide
+
+This guide shows you how to set up the RAG system with local Qdrant in one command.
+
+## Prerequisites
+
+- Python 3.8+
+- OpenAI API key
+
+## One-Command Setup
+
+The `setup_rag.py` script automates the entire setup process:
+
+```bash
+cd lennyhub-rag
+python setup_rag.py
+```
+
+This script will automatically:
+1. ✓ Check if Qdrant is installed (installs if needed)
+2. ✓ Verify your OpenAI API key
+3. ✓ Start Qdrant server
+4. ✓ Build embeddings from all transcripts
+5. ✓ Test the RAG system
+
+## Setup Options
+
+### Process All Transcripts (Full Setup)
+```bash
+python setup_rag.py
+```
+
+### Quick Setup (First 10 Transcripts Only)
+```bash
+python setup_rag.py --quick
+```
+
+### Custom Number of Transcripts
+```bash
+python setup_rag.py --max 5
+```
+
+## After Setup
+
+Once setup is complete, you can:
+
+### 1. Query the System
+```bash
+# Single query
+python query_rag.py "What is a curiosity loop?"
+
+# Interactive mode
+python query_rag.py --interactive
+```
+
+### 2. Query with Sources
+```bash
+python query_with_sources.py "What are the best practices for product management?"
+```
+
+### 3. Check Qdrant Status
+```bash
+./status_qdrant.sh
+```
+
+### 4. View Dashboard
+Open in browser: http://localhost:6333/dashboard
+
+### 5. Stop Qdrant (When Done)
+```bash
+./stop_qdrant.sh
+```
+
+## Troubleshooting
+
+### Setup fails with "OPENAI_API_KEY not set"
+```bash
+# Add to .env file
+echo "OPENAI_API_KEY=your-key-here" >> .env
+
+# Or export temporarily
+export OPENAI_API_KEY='your-key-here'
+```
+
+### Qdrant won't start
+```bash
+# Check if port is in use
+lsof -i :6333
+
+# Kill existing Qdrant
+pkill -f qdrant
+
+# Try setup again
+python setup_rag.py
+```
+
+### Want to rebuild from scratch
+```bash
+# Stop Qdrant
+./stop_qdrant.sh
+
+# Remove old data
+rm -rf qdrant_storage/ rag_storage/
+
+# Run setup again
+python setup_rag.py
+```
+
+## Manual Setup (Alternative)
+
+If you prefer manual control:
+
+```bash
+# 1. Install Qdrant
+./install_qdrant_local.sh
+
+# 2. Start Qdrant
+./start_qdrant.sh
+
+# 3. Build RAG (all transcripts)
+python build_transcript_rag.py
+
+# Or quick build (10 transcripts)
+python build_rag_quick.py
+```
+
+## Summary
+
+**Automated (Recommended):**
+```bash
+python setup_rag.py              # Full setup
+python setup_rag.py --quick      # Quick setup
+```
+
+**Manual:**
+```bash
+./install_qdrant_local.sh       # One-time
+./start_qdrant.sh               # Each session
+python build_transcript_rag.py   # Build embeddings
+```
+
+Both approaches work - use what fits your workflow!
+# Installation Guide - LennyHub RAG
+
+A RAG (Retrieval-Augmented Generation) system built on Lenny's Podcast transcripts using RAG-Anything.
+
+## Quick Start
+
+### 1. Prerequisites
+
+- Python 3.9 or higher
+- pip package manager
+- OpenAI API key ([Get one here](https://platform.openai.com/api-keys))
+
+### 2. Installation
+
+#### Option A: Using pip (Recommended)
+
+```bash
+# Navigate to the project directory
+cd lennyhub-rag
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+#### Option B: Using conda
+
+```bash
+# Create a new conda environment
+conda create -n lennyhub python=3.11 -y
+conda activate lennyhub
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Configuration
+
+Create a `.env` file in the project root with your OpenAI API key:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit the .env file and add your API key
+nano .env
+```
+
+Add this line to your `.env` file:
+```
+OPENAI_API_KEY=your-api-key-here
+```
+
+### 4. Build the RAG System
+
+Run the build script to index the transcripts:
+
+```bash
+python build_transcript_rag.py
+```
+
+This will:
+- Process both transcript files (~170KB total)
+- Create embeddings using OpenAI's text-embedding-3-small
+- Build a knowledge graph with entities and relationships
+- Store everything in `./rag_storage/`
+
+**Expected time:** 2-3 minutes
+**Expected cost:** ~$0.25 in OpenAI API calls
+
+### 5. Query the System
+
+#### Interactive Mode (Recommended)
+
+```bash
+python query_rag.py --interactive
+```
+
+Then type your questions and get instant answers!
+
+#### Single Question Mode
+
+```bash
+python query_rag.py "What is a curiosity loop?"
+```
+
+#### Example Queries Mode
+
+```bash
+python query_rag.py
+```
+
+## Verification
+
+To verify your installation is working:
+
+```bash
+# Check Python version
+python --version  # Should be 3.9+
+
+# Check if raganything is installed
+pip show raganything
+
+# Test the query script
+python query_rag.py "What is a curiosity loop and how does it work?"
+```
+
+## Troubleshooting
+
+### ModuleNotFoundError: No module named 'raganything'
+
+```bash
+pip install --upgrade raganything
+```
+
+### OPENAI_API_KEY not set
+
+Make sure your `.env` file exists and contains:
+```
+OPENAI_API_KEY=sk-...your-key...
+```
+
+### ImportError: cannot import name 'openai_complete_if_cache'
+
+This is already fixed in the provided scripts. If you encounter this, make sure you're using the latest versions:
+```bash
+pip install --upgrade lightrag-hku openai
+```
+
+### Rate Limiting
+
+If you hit OpenAI rate limits:
+- Wait a few minutes and try again
+- Upgrade your OpenAI account tier
+- The system caches responses, so re-running won't cost extra
+
+### Memory Issues
+
+If you encounter memory issues during indexing:
+- Close other applications
+- Process one transcript at a time by modifying `build_transcript_rag.py`
+
+## Project Structure
+
+```
+lennyhub-rag/
+├── data/
+│   ├── Ada Chen Rekhi.txt
+│   └── Adam Fishman.txt
+├── rag_storage/              # Generated after building
+│   ├── graph_chunk_entity_relation.graphml
+│   ├── vdb_entities.json
+│   ├── vdb_relationships.json
+│   └── ...
+├── build_transcript_rag.py   # Build the RAG system
+├── query_rag.py              # Query interface
+├── sample_questions.txt      # 70+ example questions
+├── requirements.txt          # Python dependencies
+├── .env                      # Your API keys (create this)
+├── .env.example              # Template for .env
+├── INSTALL.md                # This file
+└── README_TRANSCRIPT_RAG.md  # Full documentation
+```
+
+## Next Steps
+
+1. Review `sample_questions.txt` for 70+ example questions
+2. Read `README_TRANSCRIPT_RAG.md` for detailed documentation
+3. Start querying the system with your own questions!
+
+## Cost Estimate
+
+- **Initial build:** ~$0.25
+  - Embeddings: ~$0.02 per transcript
+  - Knowledge graph extraction: ~$0.20 total
+- **Per query:** ~$0.001-0.01 (depending on complexity)
+- **Cached queries:** Free (responses are cached)
+
+## Support
+
+If you encounter issues:
+1. Check the troubleshooting section above
+2. Review the full documentation in `README_TRANSCRIPT_RAG.md`
+3. Make sure all dependencies are installed: `pip list | grep -E "raganything|lightrag|openai"`
+
+## Upgrading
+
+To upgrade to the latest version:
+
+```bash
+pip install --upgrade raganything lightrag-hku openai
+```
+
+Note: After upgrading, you may need to rebuild the RAG system if the data format changed.
 # Adding New Transcripts to LennyHub RAG
 
 A guide for adding more podcast transcripts and updating the RAG system.

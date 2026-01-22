@@ -11,22 +11,25 @@ Usage:
     python query_with_sources.py "Your question here"
 """
 
-import os
-import asyncio
-import json
-import numpy as np
+import sys
 from pathlib import Path
-from raganything import RAGAnything, RAGAnythingConfig
-from lightrag.llm.openai import openai_complete_if_cache, openai_embed
-from lightrag.utils import EmbeddingFunc
+
+# Add project root to path
+root_dir = Path(__file__).parent.parent.parent
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+
+from src.core.engine import create_rag_instance
 from lightrag import QueryParam
-from qdrant_config import get_lightrag_kwargs
 
 
-def load_chunk_metadata(working_dir="./rag_storage"):
+def load_chunk_metadata(working_dir=None):
     """Load chunk metadata to map chunks to source documents"""
+    if working_dir is None:
+        working_dir = root_dir / "storage/rag"
+    
     metadata = {}
-
+    
     # Load text chunks with metadata
     chunks_file = Path(working_dir) / "kv_store_text_chunks.json"
     if chunks_file.exists():
@@ -111,38 +114,10 @@ async def query_with_detailed_sources(question: str, mode: str = "hybrid"):
         print("  export OPENAI_API_KEY='your-api-key-here'")
         return
 
-    # Configure RAG
-    config = RAGAnythingConfig(working_dir="./rag_storage")
-
-    # Set up LLM functions
-    async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
-        return await openai_complete_if_cache(
-            "gpt-4o-mini",
-            prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            **kwargs
-        )
-
-    async def embedding_func(texts: list[str]) -> np.ndarray:
-        return await openai_embed(texts, model="text-embedding-3-small")
-
-    # Get Qdrant configuration
-    lightrag_kwargs = get_lightrag_kwargs()
-
     # Initialize RAG
     print("Initializing RAG system...")
-    rag = RAGAnything(
-        config=config,
-        llm_model_func=llm_model_func,
-        embedding_func=EmbeddingFunc(
-            embedding_dim=1536, max_token_size=8192, func=embedding_func
-        ),
-        lightrag_kwargs=lightrag_kwargs
-    )
-
-    # Ensure LightRAG is initialized
-    await rag._ensure_lightrag_initialized()
+    working_dir = root_dir / "storage/rag"
+    rag = await create_rag_instance(working_dir=str(working_dir))
 
     # Load chunk metadata
     print("Loading chunk metadata...")

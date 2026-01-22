@@ -8,8 +8,11 @@ from dotenv import load_dotenv
 import numpy as np
 from chainlit.data.sql_alchemy import SQLAlchemyDataLayer
 
-# Add current directory to path so we can import local modules
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add project root to path so we can import src.*
+from pathlib import Path
+root_dir = Path(__file__).parent.parent.parent
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
 
 # Load environment variables
 load_dotenv()
@@ -20,6 +23,7 @@ if not os.getenv("QDRANT_URL"):
 
 @cl.data_layer
 def get_data_layer():
+    # chainlit.db is now in the same directory as app.py
     return SQLAlchemyDataLayer(conninfo="sqlite+aiosqlite:///chainlit.db")
 
 @cl.password_auth_callback
@@ -54,7 +58,7 @@ async def start():
 
     try:
         # 3. Create RAG instance (Async)
-        rag = await create_rag_instance()
+        rag = await create_rag_instance_wrapper()
         
         # Store in user session
         cl.user_session.set("rag", rag)
@@ -65,7 +69,7 @@ async def start():
         await msg.update()
         
     except Exception as e:
-        msg.content = f"❌ **Initialization Failed**\nError: {str(e)}\n\nMake sure Qdrant is running (`./start_qdrant.sh`)"
+        msg.content = f"❌ **Initialization Failed**\nError: {str(e)}\n\nMake sure Qdrant is running (`scripts/qdrant/start_qdrant.sh`)"
         await msg.update()
 
 @cl.on_message
@@ -157,87 +161,10 @@ Standalone Query:"""
         return current_query
 
 
-async def create_rag_instance():
-    """Create a fresh RAG instance."""
-    from raganything import RAGAnything, RAGAnythingConfig
-    from lightrag.llm.openai import openai_complete_if_cache, openai_embed
-    from lightrag.utils import EmbeddingFunc
-    from qdrant_config import get_lightrag_kwargs
-
-    config = RAGAnythingConfig(
-        working_dir="./rag_storage",
-        parser="mineru",
-        enable_image_processing=False,
-        enable_table_processing=False,
-        enable_equation_processing=False,
-    )
-
-    async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
-        return await openai_complete_if_cache(
-            "gpt-4o-mini",
-            prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            **kwargs
-        )
-
-    async def embedding_func(texts: list[str]) -> np.ndarray:
-        return await openai_embed(texts, model="text-embedding-3-small")
-
-
-    async def rerank_model_func(query: str, documents: list[str], top_n: int = None, **kwargs) -> list[dict]:
-        """Local reranker function using fastembed."""
-        from fastembed.rerank.cross_encoder import TextCrossEncoder
-        
-        # Lazy load model to save memory if not used and avoid startup delay
-        if not hasattr(rerank_model_func, "model"):
-            rerank_model_func.model = TextCrossEncoder(model_name="jinaai/jina-reranker-v1-turbo-en")
-        
-        # TextCrossEncoder.rerank returns an iterable of floats (scores)
-        # in the same order as the input documents.
-        scores = list(rerank_model_func.model.rerank(query, documents))
-        
-        # Convert to expected format: list of dicts with 'index' and 'relevance_score'
-        results = [
-            {"index": i, "relevance_score": score} 
-            for i, score in enumerate(scores)
-        ]
-
-        # Sort by score descending
-        results.sort(key=lambda x: x["relevance_score"], reverse=True)
-
-        # Apply top_n if provided
-        if top_n is not None:
-            results = results[:top_n]
-            
-        return results
-
-    # Get Qdrant config
-    lightrag_kwargs = get_lightrag_kwargs(verbose=False)
+async def create_rag_instance_wrapper():
+    """Wrapper to initialize RAG from the common engine."""
+    from src.core.engine import create_rag_instance
     
-    # Inject rerank config
-    if "vector_db_storage_cls_kwargs" not in lightrag_kwargs:
-        lightrag_kwargs["vector_db_storage_cls_kwargs"] = {}
-    
-    # These are LightRAG level kwargs
-    lightrag_kwargs.update({
-        "rerank_model_func": rerank_model_func,
-        "min_rerank_score": 0.3 # Allow some lower scores but exclude noise
-    })
-
-    rag = RAGAnything(
-        config=config,
-        llm_model_func=llm_model_func,
-        embedding_func=EmbeddingFunc(
-            embedding_dim=1536,
-            max_token_size=8192,
-            func=embedding_func,
-            model_name="text-embedding-3-small"
-        ),
-        lightrag_kwargs=lightrag_kwargs
-    )
-
-    # Ensure LightRAG is initialized (loads graphs/vdb)
-    # TODO: this is a hacky way to initialize LightRAG as it calls an internal function.
-    await rag._ensure_lightrag_initialized()
-    return rag
+    # Use path relative to project root
+    working_dir = os.path.join(root_dir, "storage/rag")
+    return await create_rag_instance(working_dir=working_dir)

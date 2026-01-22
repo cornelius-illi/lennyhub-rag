@@ -835,3 +835,790 @@ print(f"Edges: {graph.number_of_edges()}")
 
 **Last Updated:** January 2026
 **Version:** 2.0 (Production with Qdrant + Parallel Processing + Streamlit)
+# Qdrant Setup Guide for LennyHub RAG
+
+This guide explains how to set up and use Qdrant as the vector database for the LennyHub RAG system.
+
+## Overview
+
+Qdrant is a production-grade vector database that replaces the default NanoVectorDB (JSON-based storage). Benefits include:
+- Better performance for large datasets
+- Persistent storage in a dedicated database
+- Advanced filtering and search capabilities
+- Production-ready reliability
+
+## Prerequisites
+
+- **Windows**, macOS, or Linux operating system
+- Python 3.8+ with pip
+- `curl` command (macOS/Linux) or PowerShell (Windows)
+
+## Installation
+
+### Windows Installation
+
+```powershell
+# Run the Windows installation script
+.\install_qdrant_windows.ps1
+```
+
+This script will:
+- Download the latest Qdrant binary for Windows (x86_64)
+- Install it to `~/.qdrant/qdrant.exe`
+- Create the storage directory
+- Verify the installation
+
+**Note:** The Streamlit app will **automatically start Qdrant** when you launch it, so manual startup is optional.
+
+### macOS/Linux Installation
+
+```bash
+cd lennyhub-rag
+./install_qdrant_local.sh
+```
+
+This script will:
+- Detect your platform (macOS/Linux, x86_64/ARM)
+- Download the latest Qdrant binary
+- Install it to `~/.qdrant/qdrant`
+- Verify the installation
+
+### 2. Install Python Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+This installs `qdrant-client` and other required packages.
+
+### 3. Configure Environment
+
+The `.env` file should already have Qdrant configured:
+
+```bash
+# Qdrant Configuration
+USE_QDRANT=true
+QDRANT_URL=http://localhost:6333
+QDRANT_COLLECTION_NAME=lennyhub
+```
+
+## Usage
+
+### Starting Qdrant
+
+```bash
+./start_qdrant.sh
+```
+
+You should see:
+```
+✓ Qdrant started successfully!
+
+PID: 12345
+HTTP API: http://localhost:6333
+gRPC API: http://localhost:6334
+Dashboard: http://localhost:6333/dashboard
+```
+
+### Verify It's Running
+
+```bash
+# Check status
+./status_qdrant.sh
+
+# Or check health endpoint
+curl http://localhost:6333/health
+```
+
+### Test Configuration
+
+```bash
+python qdrant_config.py
+```
+
+Expected output:
+```
+✓ Using Qdrant vector database
+  URL: http://localhost:6333
+  Collection: lennyhub
+✓ Connected! Found 0 collection(s)
+```
+
+### Build RAG Index
+
+```bash
+# Build with all transcripts
+python build_transcript_rag.py
+
+# Or build with first 10 transcripts (for testing)
+python build_transcript_rag.py  # Edit MAX_TRANSCRIPTS in script
+```
+
+### Query the System
+
+```bash
+# Simple query
+python query_rag.py "What is a curiosity loop?"
+
+# Interactive mode
+python query_rag.py --interactive
+
+# With source attribution
+python query_with_sources.py "What is a curiosity loop?"
+```
+
+### Stopping Qdrant
+
+```bash
+./stop_qdrant.sh
+```
+
+## Management Commands
+
+### Check Status
+
+```bash
+./status_qdrant.sh
+```
+
+Shows:
+- Process status (running/stopped)
+- PID and resource usage
+- HTTP API accessibility
+- Collections and their status
+- Recent log entries
+
+### View Logs
+
+```bash
+# Follow logs in real-time
+tail -f qdrant.log
+
+# View last 50 lines
+tail -50 qdrant.log
+```
+
+### Qdrant Dashboard
+
+Access the web UI at: http://localhost:6333/dashboard
+
+Features:
+- View collections
+- Inspect vectors
+- Run test queries
+- Monitor performance
+
+## File Locations
+
+```
+lennyhub-rag/
+├── install_qdrant_local.sh     # Installation script
+├── start_qdrant.sh             # Start Qdrant
+├── stop_qdrant.sh              # Stop Qdrant
+├── status_qdrant.sh            # Check status
+├── qdrant_config.yaml          # Qdrant configuration
+├── qdrant.pid                  # Process ID (when running)
+├── qdrant.log                  # Qdrant logs
+├── qdrant_storage/             # Vector data (gitignored)
+└── rag_storage/                # Knowledge graph & metadata
+```
+
+**Binary location:** `~/.qdrant/qdrant`
+
+## Switching Between NanoVectorDB and Qdrant
+
+### Switch to Qdrant
+
+1. Edit `.env`: Set `USE_QDRANT=true`
+2. Start Qdrant: `./start_qdrant.sh`
+3. Rebuild index: `python build_transcript_rag.py`
+
+### Switch to NanoVectorDB
+
+1. Edit `.env`: Set `USE_QDRANT=false`
+2. Rebuild index: `python build_transcript_rag.py`
+3. (Optional) Stop Qdrant: `./stop_qdrant.sh`
+
+The system automatically detects the configuration.
+
+## Troubleshooting
+
+### Installation Issues
+
+**Problem:** Installation script fails
+
+**Solutions:**
+```bash
+# Check platform support
+uname -s  # Should be Darwin (macOS) or Linux
+uname -m  # Should be x86_64 or arm64/aarch64
+
+# Check internet connection
+curl -I https://github.com
+
+# Manual download from:
+# https://github.com/qdrant/qdrant/releases
+```
+
+### Qdrant Won't Start
+
+**Problem:** `start_qdrant.sh` fails
+
+**Solutions:**
+```bash
+# Check if port 6333 is already in use
+lsof -i :6333
+
+# Kill any existing Qdrant process
+pkill -f qdrant
+
+# Remove stale PID file
+rm qdrant.pid
+
+# Try starting again
+./start_qdrant.sh
+
+# View logs for errors
+tail -f qdrant.log
+```
+
+### Permission Denied
+
+**Problem:** Permission errors when running scripts
+
+**Solution:**
+```bash
+# Make scripts executable
+chmod +x *.sh
+
+# Make Qdrant binary executable
+chmod +x ~/.qdrant/qdrant
+```
+
+### Connection Refused
+
+**Problem:** `Cannot connect to Qdrant at http://localhost:6333`
+
+**Solutions:**
+1. Verify Qdrant is running: `./status_qdrant.sh`
+2. Check logs: `tail -f qdrant.log`
+3. Restart: `./stop_qdrant.sh && ./start_qdrant.sh`
+
+### Collections Not Found
+
+**Problem:** "Collection not found" errors
+
+**Solution:**
+Rebuild the index:
+```bash
+python build_transcript_rag.py
+```
+
+### Port Already in Use
+
+**Problem:** Port 6333 is busy
+
+**Solutions:**
+```bash
+# Find what's using the port
+lsof -i :6333
+
+# Kill the process
+kill <PID>
+
+# Or edit qdrant_config.yaml to use different ports
+```
+
+## Advanced Configuration
+
+### Custom Ports
+
+Edit `qdrant_config.yaml`:
+
+```yaml
+service:
+  http_port: 6333  # Change to your preferred port
+  grpc_port: 6334  # Change to your preferred port
+```
+
+Then update `.env`:
+```bash
+QDRANT_URL=http://localhost:YOUR_PORT
+```
+
+### Performance Tuning
+
+Edit `qdrant_config.yaml`:
+
+```yaml
+storage:
+  storage_path: ./qdrant_storage
+  performance:
+    max_search_threads: 4
+
+service:
+  http_port: 6333
+  grpc_port: 6334
+  max_request_size_mb: 32
+
+log_level: INFO  # Options: TRACE, DEBUG, INFO, WARN, ERROR
+```
+
+### Multiple Collections
+
+To use different collections for different projects:
+
+```bash
+# In .env
+QDRANT_COLLECTION_NAME=project_a
+
+# Or override in code
+lightrag_kwargs = get_lightrag_kwargs(collection_name="project_b")
+```
+
+## Resources
+
+- [Qdrant Documentation](https://qdrant.tech/documentation/)
+- [Qdrant Python Client](https://github.com/qdrant/qdrant-client)
+- [LightRAG](https://github.com/HKUDS/LightRAG)
+- [Qdrant GitHub Releases](https://github.com/qdrant/qdrant/releases)
+
+## Support
+
+If you encounter issues:
+
+1. Check this troubleshooting guide
+2. Review logs: `tail -f qdrant.log`
+3. Test configuration: `python qdrant_config.py`
+4. Check health: `curl http://localhost:6333/health`
+5. Verify status: `./status_qdrant.sh`
+
+For Qdrant-specific issues: https://qdrant.tech/documentation/
+# ⚡ Parallel Processing Guide
+
+Significantly speed up transcript indexing with parallel processing mode.
+
+## 🚀 Quick Start
+
+```bash
+# Default: 5 workers (5x faster)
+python setup_rag.py --max 50 --parallel
+
+# Custom workers (max: 10)
+python setup_rag.py --parallel --workers 8
+
+# All transcripts in parallel
+python setup_rag.py --parallel
+```
+
+## 📊 Performance Comparison
+
+### Sequential vs Parallel
+
+| Transcripts | Sequential | Parallel (5 workers) | Speedup |
+|------------|------------|---------------------|---------|
+| 10 | 5 min | 5 min* | 1x |
+| 50 | 30-40 min | **6-8 min** | **5x** |
+| 100 | 60-80 min | **12-15 min** | **5x** |
+| 297 | 2-3 hours | **25-35 min** | **5-6x** |
+
+*Small batches have overhead that reduces benefit
+
+### Workers vs Speed
+
+| Workers | Speed | Best For |
+|---------|-------|----------|
+| 1 | 1x | Testing, debugging |
+| 3 | 3x | Conservative, low RAM |
+| 5 | 5x | **Recommended default** |
+| 8 | 7-8x | Fast systems, good internet |
+| 10 | 9-10x | Maximum speed (rate limit safe) |
+
+## 🔧 How It Works
+
+### Sequential Processing
+```
+Transcript 1 → Process → Wait → Complete
+                              ↓
+Transcript 2 → Process → Wait → Complete
+                              ↓
+Transcript 3 → Process → Wait → Complete
+```
+**Time**: N transcripts × 2-3 min/each
+
+### Parallel Processing
+```
+Transcript 1 → Process → Wait → Complete ↘
+Transcript 2 → Process → Wait → Complete → All Done!
+Transcript 3 → Process → Wait → Complete ↗
+Transcript 4 → Process → Wait → Complete ↗
+Transcript 5 → Process → Wait → Complete ↗
+```
+**Time**: N transcripts ÷ workers × 20-30 sec/each
+
+### Technical Details
+
+**Concurrency Control**:
+- Uses `asyncio.Semaphore` to limit concurrent tasks
+- Max 10 workers to respect OpenAI rate limits
+- Each worker processes one transcript at a time
+- Workers are reused for efficiency
+
+**Smart Resume**:
+- Checks `rag_storage/kv_store_full_docs.json` for processed docs
+- Skips already-indexed transcripts automatically
+- Only processes new or failed transcripts
+- No duplicate work
+
+**Error Handling**:
+- Failed transcripts don't block others
+- Final report shows success/failure count
+- Can re-run to process failed ones only
+
+## 💡 Usage Examples
+
+### Example 1: Quick Test
+
+```bash
+# Test with 10 transcripts in parallel
+python setup_rag.py --quick --parallel
+
+# Output:
+# Already processed: 0 transcripts
+# Will process: 10 new transcript(s)
+# Processing 5 transcripts at a time (parallel mode)...
+#
+# [1/10] ✓ Ada Chen Rekhi.txt
+# [2/10] ✓ Adam Fishman.txt
+# ...
+#
+# Successfully processed: 10/10
+# Total time: 145.2 seconds (2.4 minutes)
+# Average: 14.5 seconds per transcript
+```
+
+### Example 2: Resume Interrupted Build
+
+```bash
+# You had 29 transcripts indexed, want 50 total
+python setup_rag.py --max 50 --parallel
+
+# Output:
+# Already processed: 29 transcripts
+# Will process: 21 new transcript(s)
+# Processing 5 transcripts at a time (parallel mode)...
+#
+# [1/21] ✓ Andy Johns.txt
+# [2/21] ✓ Annie Duke.txt
+# ...
+```
+
+### Example 3: Maximum Speed
+
+```bash
+# Use 10 workers for fastest indexing
+python setup_rag.py --parallel --workers 10
+
+# Good for:
+# - Fast internet connection
+# - Plenty of RAM (8GB+)
+# - Want to index 297 transcripts ASAP
+```
+
+### Example 4: Conservative Mode
+
+```bash
+# Use 3 workers for slower but safer
+python setup_rag.py --parallel --workers 3
+
+# Good for:
+# - Slower internet
+# - Limited RAM (4GB)
+# - Want to avoid rate limits
+```
+
+## ⚙️ Configuration
+
+### Adjusting Workers
+
+```bash
+# More workers = faster (up to rate limits)
+python setup_rag.py --parallel --workers 8
+
+# Fewer workers = more conservative
+python setup_rag.py --parallel --workers 3
+```
+
+### Rate Limit Considerations
+
+OpenAI rate limits (as of 2026):
+- **GPT-4o-mini**: 10,000 requests/min
+- **text-embedding-3-small**: 3,000 requests/min
+
+**Our usage per transcript**:
+- ~20-30 LLM calls (entity extraction)
+- ~5-10 embedding calls
+- Total: ~30-40 API calls
+
+**Safe concurrency**:
+- 5 workers: ~150-200 req/min ✅
+- 10 workers: ~300-400 req/min ✅
+- 20 workers: ~600-800 req/min ⚠️ (may hit limits)
+
+**Recommendation**: Stay at or below 10 workers
+
+## 🐛 Troubleshooting
+
+### Issue: "Rate limit exceeded"
+
+**Solution**:
+```bash
+# Reduce workers
+python setup_rag.py --parallel --workers 3
+
+# Or use sequential
+python setup_rag.py --max 50
+```
+
+### Issue: High RAM usage
+
+**Symptoms**: System slows down, swapping
+
+**Solution**:
+```bash
+# Reduce workers to lower memory footprint
+python setup_rag.py --parallel --workers 3
+```
+
+**Memory usage**:
+- Each worker: ~100-200MB
+- 5 workers: ~500MB-1GB
+- 10 workers: ~1-2GB
+
+### Issue: Some transcripts failed
+
+**Check**:
+```bash
+# View error details in output
+tail -100 qdrant.log
+```
+
+**Solution**:
+```bash
+# Re-run setup (will skip successful ones)
+python setup_rag.py --max 50 --parallel
+```
+
+### Issue: Want to force reprocess
+
+**Solution**:
+```bash
+# Delete storage and start fresh
+rm -rf rag_storage/ qdrant_storage/
+python setup_rag.py --parallel
+```
+
+## 📈 Best Practices
+
+### 1. Start with Default Settings
+```bash
+python setup_rag.py --max 50 --parallel
+```
+- 5 workers is the sweet spot
+- Safe for most systems
+- Good speed improvement
+
+### 2. Test Before Full Build
+```bash
+# Test with 10 first
+python setup_rag.py --quick --parallel
+
+# If successful, do full build
+python setup_rag.py --parallel
+```
+
+### 3. Monitor First Run
+```bash
+# Watch progress and resource usage
+python setup_rag.py --parallel
+
+# In another terminal:
+htop  # or Activity Monitor on Mac
+```
+
+### 4. Use Background Mode for Large Builds
+```bash
+# Run in background
+nohup python setup_rag.py --parallel > setup.log 2>&1 &
+
+# Check progress
+tail -f setup.log
+```
+
+## 🎯 When to Use Parallel vs Sequential
+
+### Use Parallel When:
+✅ Indexing 50+ transcripts
+✅ Have good internet connection
+✅ Have 4GB+ RAM available
+✅ Want to save time
+✅ System is not under heavy load
+
+### Use Sequential When:
+⚠️ Indexing < 20 transcripts (overhead not worth it)
+⚠️ Slow or unstable internet
+⚠️ Limited RAM (< 4GB)
+⚠️ Debugging issues
+⚠️ Being cautious with rate limits
+
+## 📊 Real-World Results
+
+### Scenario 1: Fresh Setup (50 transcripts)
+```
+Command: python setup_rag.py --max 50 --parallel --workers 5
+Time: 7.2 minutes
+Cost: ~$1.20
+Result: 50/50 successful
+Average: 8.6 seconds per transcript
+```
+
+### Scenario 2: Complete Library (297 transcripts)
+```
+Command: python setup_rag.py --parallel --workers 8
+Time: 28.5 minutes
+Cost: ~$7.20
+Result: 297/297 successful
+Average: 5.8 seconds per transcript
+```
+
+### Scenario 3: Resume from 29 to 50
+```
+Command: python setup_rag.py --max 50 --parallel
+Already processed: 29
+New transcripts: 21
+Time: 3.1 minutes
+Cost: ~$0.50
+Result: 21/21 successful
+```
+
+## 🔍 Monitoring Progress
+
+### Real-Time Progress
+The parallel mode shows live progress:
+```
+[1/21] ✓ Andy Johns.txt
+[2/21] ✓ Annie Duke.txt
+[3/21] ✓ Anton Osika.txt
+[4/21] ✓ Anuj Rathi.txt
+[5/21] ✓ Anu Hariharan.txt
+```
+
+### Check Current Database
+```bash
+python -c "import json; docs = json.load(open('rag_storage/kv_store_full_docs.json')); print(f'Indexed: {len(docs)} transcripts')"
+```
+
+### Check Qdrant
+```bash
+curl -s http://localhost:6333/collections/lightrag_vdb_chunks | jq '.result.points_count'
+```
+
+## 🎓 Technical Deep Dive
+
+### Implementation
+
+```python
+# Simplified parallel processing flow
+
+async def process_single_transcript_parallel(rag, file, semaphore):
+    async with semaphore:  # Limit concurrency
+        # Read transcript
+        content = read_file(file)
+
+        # Process with RAG
+        await rag.insert_content_list(content, file)
+
+        # Update progress
+        print(f"✓ {file.name}")
+
+async def build_rag_parallel(files, workers=5):
+    # Create semaphore (only N can run at once)
+    semaphore = asyncio.Semaphore(workers)
+
+    # Create all tasks
+    tasks = [
+        process_single_transcript_parallel(rag, file, semaphore)
+        for file in files
+    ]
+
+    # Run all in parallel (semaphore limits concurrency)
+    results = await asyncio.gather(*tasks)
+```
+
+### Why It's Fast
+
+1. **I/O Parallelization**: While one transcript waits for OpenAI API, others are processing
+2. **CPU Overlap**: Entity extraction and embedding happen simultaneously across workers
+3. **Smart Caching**: LLM responses are cached, reducing redundant API calls
+4. **Async/Await**: Efficient use of system resources
+
+## 🆚 Comparison with Other Methods
+
+### Method 1: Sequential (Original)
+```bash
+python build_transcript_rag.py
+```
+- ⏱️ Slowest
+- 💾 Lowest memory
+- 🐛 Easiest to debug
+- 📈 Most predictable
+
+### Method 2: Parallel (New)
+```bash
+python setup_rag.py --parallel
+```
+- ⚡ 5-10x faster
+- 💾 Moderate memory
+- 🎯 Production-ready
+- 🔄 Auto-resume
+
+### Method 3: Manual Parallel Script
+```bash
+python build_transcript_rag_parallel.py
+```
+- ⚡ Fast
+- 🔧 More control
+- 📝 Requires editing script
+- 🎯 Advanced users
+
+**Recommendation**: Use Method 2 (setup_rag.py --parallel)
+
+## 📚 Additional Resources
+
+- **Setup Guide**: [SETUP_GUIDE.md](SETUP_GUIDE.md)
+- **Main README**: [README.md](README.md)
+- **Qdrant Docs**: [QDRANT_SETUP.md](QDRANT_SETUP.md)
+
+## ❓ FAQ
+
+**Q: Will parallel mode use more API credits?**
+A: No, same cost. Only faster.
+
+**Q: Can I stop and resume?**
+A: Yes! System tracks progress and skips completed transcripts.
+
+**Q: What if some transcripts fail?**
+A: Re-run the command. Only failed ones will be reprocessed.
+
+**Q: Is parallel mode safe?**
+A: Yes, with max 10 workers it's well below OpenAI rate limits.
+
+**Q: Can I use parallel mode on Raspberry Pi?**
+A: Yes, but use fewer workers (--workers 2) due to RAM constraints.
+
+**Q: Does it work on Windows?**
+A: Yes, Python asyncio works cross-platform.
+
+---
+
+**Ready to try?** Start with: `python setup_rag.py --max 50 --parallel`

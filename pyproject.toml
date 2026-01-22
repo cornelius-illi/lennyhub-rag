@@ -4,4 +4,20 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "raganything>=1.2.9",
+    "lightrag-hku>=1.4.9",
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "asyncio>=3.4.3",
+    "nest-asyncio>=1.5.0",
+    "numpy>=1.24.0",
+    "tqdm>=4.65.0",
+    "qdrant-client>=1.7.0",
+    "requests>=2.31.0",
+    "fastembed",
+    "Pillow",
+    "sqlalchemy",
+    "aiofiles",
+    "aiosqlite",
+]

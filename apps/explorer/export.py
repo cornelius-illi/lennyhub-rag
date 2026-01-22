@@ -13,9 +13,13 @@ import json
 from pathlib import Path
 
 
-def export_graph_to_json(graphml_path="rag_storage/graph_chunk_entity_relation.graphml",
-                         output_path="graph_data.json"):
+def export_graph_to_json(graphml_path=None, output_path="graph_data.json"):
     """Export GraphML to JSON format for vis.js"""
+
+    if graphml_path is None:
+        # Default to storage relative to project root
+        root_dir = Path(__file__).parent.parent.parent
+        graphml_path = root_dir / "storage/rag/graph_chunk_entity_relation.graphml"
 
     print("Loading knowledge graph...")
     G = nx.read_graphml(graphml_path)

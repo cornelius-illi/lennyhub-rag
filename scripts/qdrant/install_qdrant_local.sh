@@ -64,9 +64,13 @@ echo ""
 # Create directory for Qdrant
 QDRANT_DIR="$HOME/.qdrant"
 QDRANT_BIN="$QDRANT_DIR/qdrant"
-QDRANT_STORAGE="./qdrant_storage"
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR="$( cd "$SCRIPT_DIR/../.." && pwd )"
+QDRANT_STORAGE="$ROOT_DIR/storage/qdrant"
 
 mkdir -p "$QDRANT_DIR"
+mkdir -p "$QDRANT_STORAGE"
 
 # Download URL
 DOWNLOAD_URL="https://github.com/qdrant/qdrant/releases/download/v${LATEST_VERSION}/qdrant-${PLATFORM}.tar.gz"
@@ -113,7 +117,7 @@ echo "Qdrant binary: $QDRANT_BIN"
 echo "Storage will be in: $QDRANT_STORAGE"
 echo ""
 echo "To start Qdrant:"
-echo "  ./start_qdrant.sh"
+echo "  $SCRIPT_DIR/start_qdrant.sh"
 echo ""
 echo "Or manually:"
 echo "  $QDRANT_BIN --storage-path $QDRANT_STORAGE"

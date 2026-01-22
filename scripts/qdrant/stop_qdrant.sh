@@ -1,9 +1,7 @@
-#!/bin/bash
-#
-# Stop Qdrant local instance
-#
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ROOT_DIR="$( cd "$SCRIPT_DIR/../.." && pwd )"
 
-QDRANT_PID_FILE="./qdrant.pid"
+QDRANT_PID_FILE="$ROOT_DIR/storage/qdrant/qdrant.pid"
 
 if [ ! -f "$QDRANT_PID_FILE" ]; then
     echo "✓ Qdrant is not running (no PID file found)"

@@ -15,17 +15,13 @@ env/
 ENV/
 .venv/
 
-# RAG Storage
-rag_storage/
-
-# Qdrant Storage
-qdrant_storage/
-qdrant.pid
+# Persistent Storage
+storage/
 
 # SQLite Databases
-*.db
-*.db-shm
-*.db-wal
+apps/chat/*.db
+apps/chat/*.db-shm
+apps/chat/*.db-wal
 
 # Chainlit
 .chainlit/

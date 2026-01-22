@@ -10,10 +10,14 @@ import os
 import asyncio
 import numpy as np
 from pathlib import Path
-from raganything import RAGAnything, RAGAnythingConfig
-from lightrag.llm.openai import openai_complete_if_cache, openai_embed
-from lightrag.utils import EmbeddingFunc
-from qdrant_config import get_lightrag_kwargs
+import sys
+
+# Add project root to path
+root_dir = Path(__file__).parent.parent.parent
+if str(root_dir) not in sys.path:
+    sys.path.append(str(root_dir))
+
+from src.core.engine import create_rag_instance
 
 
 async def query_rag(question: str, mode: str = "hybrid"):
@@ -26,38 +30,10 @@ async def query_rag(question: str, mode: str = "hybrid"):
         print("  export OPENAI_API_KEY='your-api-key-here'")
         return
 
-    # Configure RAG
-    config = RAGAnythingConfig(working_dir="./rag_storage")
-
-    # Set up LLM functions
-    async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
-        return await openai_complete_if_cache(
-            "gpt-4o-mini",
-            prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            **kwargs
-        )
-
-    async def embedding_func(texts: list[str]) -> np.ndarray:
-        return await openai_embed(texts, model="text-embedding-3-small")
-
-    # Get Qdrant configuration
-    lightrag_kwargs = get_lightrag_kwargs()
-
     # Initialize RAG
     print("Initializing RAG system...")
-    rag = RAGAnything(
-        config=config,
-        llm_model_func=llm_model_func,
-        embedding_func=EmbeddingFunc(
-            embedding_dim=1536, max_token_size=8192, func=embedding_func
-        ),
-        lightrag_kwargs=lightrag_kwargs
-    )
-
-    # Ensure LightRAG is initialized
-    await rag._ensure_lightrag_initialized()
+    working_dir = root_dir / "storage/rag"
+    rag = await create_rag_instance(working_dir=str(working_dir))
 
     # Query the RAG
     print(f"\nQuestion: {question}")
@@ -81,38 +57,10 @@ async def interactive_mode():
         print("  export OPENAI_API_KEY='your-api-key-here'")
         return
 
-    # Configure RAG
-    config = RAGAnythingConfig(working_dir="./rag_storage")
-
-    # Set up LLM functions
-    async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
-        return await openai_complete_if_cache(
-            "gpt-4o-mini",
-            prompt,
-            system_prompt=system_prompt,
-            history_messages=history_messages,
-            **kwargs
-        )
-
-    async def embedding_func(texts: list[str]) -> np.ndarray:
-        return await openai_embed(texts, model="text-embedding-3-small")
-
-    # Get Qdrant configuration
-    lightrag_kwargs = get_lightrag_kwargs()
-
     # Initialize RAG
     print("Initializing RAG system...")
-    rag = RAGAnything(
-        config=config,
-        llm_model_func=llm_model_func,
-        embedding_func=EmbeddingFunc(
-            embedding_dim=1536, max_token_size=8192, func=embedding_func
-        ),
-        lightrag_kwargs=lightrag_kwargs
-    )
-
-    # Ensure LightRAG is initialized
-    await rag._ensure_lightrag_initialized()
+    working_dir = root_dir / "storage/rag"
+    rag = await create_rag_instance(working_dir=str(working_dir))
 
     print("\n" + "=" * 60)
     print("Transcript RAG System - Interactive Mode")
