@@ -222,7 +222,7 @@ async def process_single_transcript_parallel(rag, transcript_file, semaphore, mu
             return False, transcript_file.name
 
 
-async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, collection_name=None, multimodal=False):
+async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, multimodal=False):
     """Build RAG system with parallel processing"""
     global total_to_process, processed_count
 
@@ -235,10 +235,10 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, c
     start_time = datetime.now()
 
     # Configure RAG system
-    working_dir = f"./rag_storage/{collection_name}"
+    working_dir = "./rag_storage"
     print(f"Using working directory: {working_dir}")
     config = RAGAnythingConfig(
-        working_dir=f"./rag_storage/{collection_name}",
+        working_dir="./rag_storage",
         parser="mineru",
         enable_image_processing=multimodal,
         enable_table_processing=multimodal,
@@ -262,7 +262,7 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, c
 
     # Get Qdrant configuration
     lightrag_kwargs = get_lightrag_kwargs(
-        collection_name=collection_name,
+        
         multimodal=multimodal,
         verbose=False
     )
@@ -364,7 +364,7 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, c
     return successful > 0
 
 
-async def build_rag(max_transcripts=None, source_dir=None, collection_name=None, multimodal=False):
+async def build_rag(max_transcripts=None, source_dir=None, multimodal=False):
     """Build RAG system with sequential processing"""
     from raganything import RAGAnything, RAGAnythingConfig
     from lightrag.llm.openai import openai_complete_if_cache, openai_embed
@@ -373,10 +373,10 @@ async def build_rag(max_transcripts=None, source_dir=None, collection_name=None,
     import numpy as np
 
     # Configure RAG system
-    working_dir = f"./rag_storage/{collection_name}"
+    working_dir = "./rag_storage"
     print(f"Using working directory: {working_dir}")
     config = RAGAnythingConfig(
-        working_dir=f"./rag_storage/{collection_name}",
+        working_dir="./rag_storage",
         parser="mineru",
         enable_image_processing=multimodal,
         enable_table_processing=multimodal,
@@ -400,7 +400,7 @@ async def build_rag(max_transcripts=None, source_dir=None, collection_name=None,
 
     # Get Qdrant configuration
     lightrag_kwargs = get_lightrag_kwargs(
-        collection_name=collection_name,
+        
         multimodal=multimodal,
         verbose=False
     )
@@ -551,12 +551,6 @@ async def main():
         help="Path to the directory containing the source documents"
     )
     parser.add_argument(
-        "--collection-name",
-        type=str,
-        default="lennyhub",
-        help="Name for the Qdrant collection"
-    )
-    parser.add_argument(
         "--multimodal",
         action="store_true",
         help="Enable multimodal indexing for text and images"
@@ -624,14 +618,12 @@ async def main():
                 max_transcripts=max_transcripts,
                 workers=args.workers,
                 source_dir=args.source_dir,
-                collection_name=args.collection_name,
                 multimodal=args.multimodal
             )
         else:
             success = await build_rag(
                 max_transcripts=max_transcripts,
                 source_dir=args.source_dir,
-                collection_name=args.collection_name,
                 multimodal=args.multimodal
             )
 
@@ -650,8 +642,8 @@ async def main():
     print("  1. Query the system:")
     print('     python query_rag.py "Your question here"')
     print("     python query_rag.py --interactive\n")
-    print("  2. Launch visual interface:")
-    print("     ./run_streamlit.sh\n")
+    print("  2. Launch web interface:")
+    print("     ./run_chainlit.sh\n")
     print("  3. Query with sources:")
     print('     python query_with_sources.py "Your question"\n')
     print("  4. Check Qdrant status:")

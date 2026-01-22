@@ -5,7 +5,7 @@ This project is a Retrieval-Augmented Generation (RAG) system called "LennyHub R
 The core of the project is built with Python and utilizes several key technologies:
 - **`raganything` and `lightrag`**: These are the primary frameworks used to build the RAG system, including entity and relationship extraction for knowledge graph-based retrieval.
 - **`Qdrant`**: A vector database used for storing embeddings and enabling efficient similarity search. It is set up to run locally without requiring Docker.
-- **`Streamlit`**: This library is used to create an interactive and user-friendly web interface for querying the RAG system.
+- **`Chainlit`**: This library is used to create a conversational AI interface for interacting with the RAG system.
 - **`OpenAI`**: The project leverages OpenAI's models (GPT-4o-mini and text-embedding-3-small) for generating answers and creating text embeddings.
 
 The system offers both a web-based UI and a command-line interface for querying. It also includes an interactive knowledge graph viewer to explore connections between people mentioned in the podcasts.
@@ -40,25 +40,23 @@ The `setup_rag.py` script automates the process of setting up the Qdrant databas
 -   **Quick setup (recommended for first-time use):**
     This processes a small subset of transcripts to quickly verify the setup.
     ```bash
-    python setup_rag.py --source-dir data/lennys-podcast --collection-name lennys-podcast --quick
+    python setup_rag.py --source-dir data/lennys-podcast --quick
     ```
 -   **Full setup (parallel mode for speed):**
     This processes all transcripts. The `--parallel` flag significantly speeds up the process.
     ```bash
-    python setup_rag.py --source-dir data/lennys-podcast --collection-name lennys-podcast --parallel
+    python setup_rag.py --source-dir data/lennys-podcast --parallel
     ```
 
 ## 4. Running the Application
 
-### Web Interface (Streamlit)
+### Web Interface (Chainlit)
 
 To launch the web-based interface, run the following command:
 
 ```bash
-./run_streamlit.sh
+./run_chainlit.sh
 ```
-
-This script will start the Qdrant server automatically and then launch the Streamlit application. You can then access the UI in your web browser.
 
 ### Command-Line Interface (CLI)
 
@@ -94,8 +92,6 @@ This will open the graph viewer in your browser.
 - **Configuration**: Environment variables (e.g., API keys, Qdrant settings) are managed in a `.env` file.
 - **Modularity**: The project is structured with separate scripts for different concerns:
     - `setup_rag.py`: Initial setup and data indexing.
-    - `streamlit_app.py`: The main file for the web application.
+    - `chainlit_app.py`: The main file for the web application.
     - `query_*.py`: A set of scripts for CLI-based querying.
-```suggestion
-99:    - `query_*.py`: A set of scripts for CLI-based querying.
 - **Testing**: While no formal testing framework is explicitly defined in the project structure, the `setup_rag.py --quick` command serves as a quick integration test to ensure the core components are working together correctly.
