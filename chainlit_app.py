@@ -102,8 +102,11 @@ async def main(message: cl.Message):
             history.append({"role": "user", "content": message.content}) # Store original query
             history.append({"role": "assistant", "content": response})
             # Keep history short-ish to avoid context window issues (e.g., last 10 turns)
-            if len(history) > MAX_HISTORY_MESSAGES:
-                history = history[-MAX_HISTORY_MESSAGES:]
+            
+            max_history_messages = int(os.getenv("MAX_HISTORY_MESSAGES", "10"))
+            
+            if len(history) > max_history_messages:
+                history = history[-max_history_messages:]
             cl.user_session.set("history", history)
             
             step.output = "Query Completed"
@@ -120,14 +123,17 @@ async def main(message: cl.Message):
 async def rewrite_query(rag, history, current_query):
     """Rewrite the current query based on history to be standalone."""
     
+    # 1. Access Mode (default hybrid)
+    max_truncation = int(os.getenv("MAX_CONTENT_TRUNCATION_LENGTH", "200"))
+    
     # Construct a simple history string or list for the prompt
     history_str = ""
     for msg in history:
         role = "User" if msg["role"] == "user" else "Assistant"
         content = msg["content"]
         # Truncate content slightly if too long to save tokens
-        if len(content) > MAX_CONTENT_TRUNCATION_LENGTH:
-            content = content[:MAX_CONTENT_TRUNCATION_LENGTH] + "..."
+        if len(content) > max_truncation:
+            content = content[:max_truncation] + "..."
         history_str += f"{role}: {content}\n"
         
     prompt = f"""Given the following conversation history and a new user question, rewrite the user's question to be a standalone query that captures all necessary context. 
@@ -225,12 +231,13 @@ async def create_rag_instance():
         embedding_func=EmbeddingFunc(
             embedding_dim=1536,
             max_token_size=8192,
-            func=embedding_func
+            func=embedding_func,
+            model_name="text-embedding-3-small"
         ),
         lightrag_kwargs=lightrag_kwargs
     )
 
     # Ensure LightRAG is initialized (loads graphs/vdb)
-await rag.lightrag.initialize_storages()
-
+    # TODO: this is a hacky way to initialize LightRAG as it calls an internal function.
+    await rag._ensure_lightrag_initialized()
     return rag

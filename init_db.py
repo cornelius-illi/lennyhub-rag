@@ -1,6 +1,7 @@
 
 import asyncio
 import aiosqlite
+import os
 
 async def init_db():
     db_path = os.getenv("CHAINLIT_DB_PATH", "chainlit.db")

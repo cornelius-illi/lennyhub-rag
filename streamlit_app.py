@@ -219,15 +219,18 @@ def check_qdrant_status():
             
             # Group collections by prefix to identify data sources
             prefixes = set()
-            suffixes = ["_chunks", "_entities", "_relationships"]
+            # Common patterns: {source}_chunks, {source}_entities, {source}_relationships
+            # possibly with _model_name suffix
             for col in raw_collections:
                 name = col.get("name", "")
-                for suffix in suffixes:
-                    if name.endswith(suffix):
-                        prefixes.add(name[:-len(suffix)])
-                        break
+                if "_chunks" in name:
+                    prefixes.add(name.split("_chunks")[0])
+                elif "_entities" in name:
+                    prefixes.add(name.split("_entities")[0])
+                elif "_relationships" in name:
+                    prefixes.add(name.split("_relationships")[0])
                 else:
-                    # If no suffix matches, it might be a single collection
+                    # Fallback for unexpected names
                     prefixes.add(name)
 
             return {
@@ -247,7 +250,7 @@ def check_qdrant_status():
     }
 
 
-def create_rag_instance():
+def create_rag_instance(collection_name: str = None):
     """Create a fresh RAG instance (not cached to avoid event loop issues)"""
     from raganything import RAGAnything, RAGAnythingConfig
     from lightrag.llm.openai import openai_complete_if_cache, openai_embed
@@ -255,8 +258,10 @@ def create_rag_instance():
     from qdrant_config import get_lightrag_kwargs
     import numpy as np
 
+    working_dir = f"./rag_storage/{collection_name}" if collection_name else "./rag_storage"
+
     config = RAGAnythingConfig(
-        working_dir="./rag_storage",
+        working_dir=working_dir,
         parser="mineru",
         enable_image_processing=False,
         enable_table_processing=False,
@@ -283,7 +288,8 @@ def create_rag_instance():
         embedding_func=EmbeddingFunc(
             embedding_dim=1536,
             max_token_size=8192,
-            func=embedding_func
+            func=embedding_func,
+            model_name="text-embedding-3-small"
         ),
         lightrag_kwargs=lightrag_kwargs
     )
@@ -291,10 +297,10 @@ def create_rag_instance():
     return rag
 
 
-def initialize_rag():
+def initialize_rag(collection_name: str = None):
     """Initialize RAG system with fresh instance to avoid event loop conflicts"""
     try:
-        rag = create_rag_instance()
+        rag = create_rag_instance(collection_name=collection_name)
         return rag, None
     except Exception as e:
         return None, str(e)

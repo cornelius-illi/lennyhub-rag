@@ -25,8 +25,9 @@ async def run_query(question: str, mode: str = "hybrid", collection_name: str = 
         from qdrant_config import get_lightrag_kwargs
         import numpy as np
 
+        working_dir = f"./rag_storage/{collection_name}" if collection_name else "./rag_storage"
         config = RAGAnythingConfig(
-            working_dir="./rag_storage",
+            working_dir=working_dir,
             parser="mineru",
             enable_image_processing=False,
             enable_table_processing=False,
@@ -53,7 +54,8 @@ async def run_query(question: str, mode: str = "hybrid", collection_name: str = 
             embedding_func=EmbeddingFunc(
                 embedding_dim=1536,
                 max_token_size=8192,
-                func=embedding_func
+                func=embedding_func,
+                model_name="text-embedding-3-small"
             ),
             lightrag_kwargs=lightrag_kwargs
         )

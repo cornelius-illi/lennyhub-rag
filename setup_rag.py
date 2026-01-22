@@ -152,9 +152,9 @@ def check_api_key():
     return True
 
 
-def get_already_processed_docs():
+def get_already_processed_docs(working_dir):
     """Get list of already processed document IDs"""
-    doc_status_file = Path("./rag_storage/kv_store_full_docs.json")
+    doc_status_file = Path(working_dir) / "kv_store_full_docs.json"
     if doc_status_file.exists():
         try:
             with open(doc_status_file, 'r') as f:
@@ -185,15 +185,19 @@ async def process_single_transcript_parallel(rag, transcript_file, semaphore, mu
 
             # Prepare content for RAG
             content_list = [{"type": "text", "text": content, "page_idx": 0}]
-            image_embeddings = None
-
+            
             # Handle multimodal processing for markdown files
-            if multimodal and transcript_file.suffix.lower() == ".md" and image_embedder:
+            if multimodal and transcript_file.suffix.lower() in [".md", ".markdown"]:
                 from multimodal_processor import parse_markdown_images
                 image_paths = parse_markdown_images(content, transcript_file)
                 if image_paths:
                     print(f"  Found {len(image_paths)} images in {transcript_file.name}")
-                    image_embeddings = image_embedder.embed(image_paths)
+                    for img_path in image_paths:
+                        content_list.append({
+                            "type": "image",
+                            "image_path": str(img_path),
+                            "page_idx": 0
+                        })
 
             # Prepare kwargs for insertion
             insert_kwargs = {
@@ -201,10 +205,6 @@ async def process_single_transcript_parallel(rag, transcript_file, semaphore, mu
                 "file_path": str(transcript_file),
                 "doc_id": doc_id
             }
-            # if image_embeddings:
-            #     # Note: raganything insert_content_list does not support image_embeddings kwarg directly
-            #     # insert_kwargs["image_embeddings"] = image_embeddings
-            #     pass
 
             # Insert into RAG system
             await rag.insert_content_list(**insert_kwargs)
@@ -235,12 +235,14 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, c
     start_time = datetime.now()
 
     # Configure RAG system
+    working_dir = f"./rag_storage/{collection_name}"
+    print(f"Using working directory: {working_dir}")
     config = RAGAnythingConfig(
-        working_dir="./rag_storage",
+        working_dir=f"./rag_storage/{collection_name}",
         parser="mineru",
-        enable_image_processing=False,
-        enable_table_processing=False,
-        enable_equation_processing=False,
+        enable_image_processing=multimodal,
+        enable_table_processing=multimodal,
+        enable_equation_processing=multimodal,
     )
 
     # Set up LLM and embedding functions
@@ -273,7 +275,7 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, c
         embedding_func=EmbeddingFunc(
             embedding_dim=1536,
             max_token_size=8192,
-            func=embedding_func
+            func=embedding_func, model_name="text-embedding-3-small"
         ),
         lightrag_kwargs=lightrag_kwargs
     )
@@ -300,7 +302,7 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, c
         rag.config.enable_image_processing = True
 
     # Get already processed documents
-    already_processed = get_already_processed_docs()
+    already_processed = get_already_processed_docs(working_dir)
 
     # Filter out already processed
     transcript_files = []
@@ -371,12 +373,14 @@ async def build_rag(max_transcripts=None, source_dir=None, collection_name=None,
     import numpy as np
 
     # Configure RAG system
+    working_dir = f"./rag_storage/{collection_name}"
+    print(f"Using working directory: {working_dir}")
     config = RAGAnythingConfig(
-        working_dir="./rag_storage",
+        working_dir=f"./rag_storage/{collection_name}",
         parser="mineru",
-        enable_image_processing=False,
-        enable_table_processing=False,
-        enable_equation_processing=False,
+        enable_image_processing=multimodal,
+        enable_table_processing=multimodal,
+        enable_equation_processing=multimodal,
     )
 
     # Set up LLM and embedding functions
@@ -409,7 +413,7 @@ async def build_rag(max_transcripts=None, source_dir=None, collection_name=None,
         embedding_func=EmbeddingFunc(
             embedding_dim=1536,
             max_token_size=8192,
-            func=embedding_func
+            func=embedding_func, model_name="text-embedding-3-small"
         ),
         lightrag_kwargs=lightrag_kwargs
     )
@@ -433,7 +437,7 @@ async def build_rag(max_transcripts=None, source_dir=None, collection_name=None,
         rag.config.enable_image_processing = True
 
     # Get already processed documents
-    already_processed = get_already_processed_docs()
+    already_processed = get_already_processed_docs(working_dir)
     print(f"Already processed: {len(already_processed)} transcripts")
 
     # Filter out already processed
@@ -468,15 +472,19 @@ async def build_rag(max_transcripts=None, source_dir=None, collection_name=None,
 
         # Prepare content for RAG
         content_list = [{"type": "text", "text": content, "page_idx": 0}]
-        image_embeddings = None
-
+        
         # Handle multimodal processing for markdown files
-        if multimodal and transcript_file.suffix.lower() in [".md", ".markdown"] and image_embedder:
+        if multimodal and transcript_file.suffix.lower() in [".md", ".markdown"]:
             from multimodal_processor import parse_markdown_images
             image_paths = parse_markdown_images(content, transcript_file)
             if image_paths:
                 print(f"  Found {len(image_paths)} images in {transcript_file.name}")
-                image_embeddings = image_embedder.embed(image_paths)
+                for img_path in image_paths:
+                    content_list.append({
+                        "type": "image",
+                        "image_path": str(img_path),
+                        "page_idx": 0
+                    })
 
         # Prepare kwargs for insertion
         insert_kwargs = {
@@ -484,11 +492,6 @@ async def build_rag(max_transcripts=None, source_dir=None, collection_name=None,
             "file_path": str(transcript_file),
             "doc_id": f"transcript-{transcript_file.stem}"
         }
-        # if image_embeddings:
-        #     # This is a placeholder for how raganything might accept image embeddings
-        #     # The actual key ('image_embeddings') might need to be different
-        #     # insert_kwargs["image_vectors"] = image_embeddings
-        #     pass
 
         # Insert into RAG system
         await rag.insert_content_list(**insert_kwargs)
