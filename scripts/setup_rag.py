@@ -255,6 +255,83 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, m
     print("Setting up LLM and embedding functions...")
 
     async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+        # WORKAROUND: Intercept 'image_data' and call OpenAI directly
+        # This is needed because raganything passes 'image_data' as a kwarg,
+        # which is not supported by the openai library's create method.
+        if 'image_data' in kwargs:
+            import base64
+            import io
+            import mimetypes
+            from PIL import Image
+            from openai import AsyncOpenAI
+
+            # Initialize client assuming OPENAI_API_KEY is in the environment
+            client = AsyncOpenAI()
+
+            image_data = kwargs.pop('image_data')
+
+            # Convert image to base64
+            image_bytes = None
+            if isinstance(image_data, str):
+                # It's a file path
+                try:
+                    with open(image_data, "rb") as image_file:
+                        image_bytes = image_file.read()
+                    # Guess mime type from extension
+                    mime_type, _ = mimetypes.guess_type(image_data)
+                    if mime_type is None:
+                        mime_type = "image/png"  # fallback
+                except FileNotFoundError:
+                    print(f"ERROR: Image file not found at path: {image_data}")
+                    return "Error: Image file not found."
+            elif isinstance(image_data, Image.Image):
+                mime_type = "image/png"
+                buffered = io.BytesIO()
+                image_data.save(buffered, format="PNG")
+                image_bytes = buffered.getvalue()
+            elif isinstance(image_data, (bytes, io.BytesIO)):
+                mime_type = "image/png" # Assume png for raw bytes
+                image_bytes = image_data.getvalue() if isinstance(image_data, io.BytesIO) else image_data
+            else:
+                print(f"Warning: Unsupported image data type: {type(image_data)}")
+                return "Error: Could not process unsupported image type."
+
+            if not image_bytes:
+                return "Error: Image data was empty after processing."
+
+            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+
+            # Construct messages for multimodal input
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            
+            messages.extend(history_messages)
+
+            messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}
+                    }
+                ]
+            })
+
+            try:
+                # Call OpenAI API directly
+                response = await client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                    **kwargs # Pass remaining kwargs (e.g., temperature)
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                print(f"ERROR: Direct OpenAI call with image failed: {e}")
+                return "Error generating image description."
+
+        # Original path for non-image (text only) data
         return await openai_complete_if_cache(
             "gpt-4o-mini",
             prompt,
@@ -388,6 +465,83 @@ async def build_rag(max_transcripts=None, source_dir=None, multimodal=False):
     print("Setting up LLM and embedding functions...")
 
     async def llm_model_func(prompt, system_prompt=None, history_messages=[], **kwargs):
+        # WORKAROUND: Intercept 'image_data' and call OpenAI directly
+        # This is needed because raganything passes 'image_data' as a kwarg,
+        # which is not supported by the openai library's create method.
+        if 'image_data' in kwargs:
+            import base64
+            import io
+            import mimetypes
+            from PIL import Image
+            from openai import AsyncOpenAI
+
+            # Initialize client assuming OPENAI_API_KEY is in the environment
+            client = AsyncOpenAI()
+
+            image_data = kwargs.pop('image_data')
+
+            # Convert image to base64
+            image_bytes = None
+            if isinstance(image_data, str):
+                # It's a file path
+                try:
+                    with open(image_data, "rb") as image_file:
+                        image_bytes = image_file.read()
+                    # Guess mime type from extension
+                    mime_type, _ = mimetypes.guess_type(image_data)
+                    if mime_type is None:
+                        mime_type = "image/png"  # fallback
+                except FileNotFoundError:
+                    print(f"ERROR: Image file not found at path: {image_data}")
+                    return "Error: Image file not found."
+            elif isinstance(image_data, Image.Image):
+                mime_type = "image/png"
+                buffered = io.BytesIO()
+                image_data.save(buffered, format="PNG")
+                image_bytes = buffered.getvalue()
+            elif isinstance(image_data, (bytes, io.BytesIO)):
+                mime_type = "image/png" # Assume png for raw bytes
+                image_bytes = image_data.getvalue() if isinstance(image_data, io.BytesIO) else image_data
+            else:
+                print(f"Warning: Unsupported image data type: {type(image_data)}")
+                return "Error: Could not process unsupported image type."
+
+            if not image_bytes:
+                return "Error: Image data was empty after processing."
+
+            base64_image = base64.b64encode(image_bytes).decode('utf-8')
+
+            # Construct messages for multimodal input
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            
+            messages.extend(history_messages)
+
+            messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}
+                    }
+                ]
+            })
+
+            try:
+                # Call OpenAI API directly
+                response = await client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=messages,
+                    **kwargs # Pass remaining kwargs (e.g., temperature)
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                print(f"ERROR: Direct OpenAI call with image failed: {e}")
+                return "Error generating image description."
+
+        # Original path for non-image (text only) data
         return await openai_complete_if_cache(
             "gpt-4o-mini",
             prompt,
