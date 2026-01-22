@@ -24,7 +24,8 @@ if not os.getenv("QDRANT_URL"):
 @cl.data_layer
 def get_data_layer():
     # chainlit.db is now in the same directory as app.py
-    return SQLAlchemyDataLayer(conninfo="sqlite+aiosqlite:///chainlit.db")
+    db_path = os.path.join(os.path.dirname(__file__), "chainlit.db")
+    return SQLAlchemyDataLayer(conninfo=f"sqlite+aiosqlite:///{db_path}")
 
 @cl.password_auth_callback
 def auth_callback(username: str, password: str):
