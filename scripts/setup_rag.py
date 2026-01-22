@@ -177,7 +177,7 @@ total_to_process = 0
 lock = asyncio.Lock()
 
 
-async def process_single_transcript_parallel(rag, transcript_file, semaphore, multimodal=False, image_embedder=None):
+async def process_single_transcript_parallel(rag, transcript_file, semaphore, multimodal=False):
     """Process a single transcript with semaphore control (parallel mode)"""
     global processed_count
 
@@ -201,7 +201,8 @@ async def process_single_transcript_parallel(rag, transcript_file, semaphore, mu
                     for img_path in image_paths:
                         content_list.append({
                             "type": "image",
-                            "image_path": str(img_path),
+                            "img_path": str(img_path),  # Fixed: use 'img_path' not 'image_path'
+                            "image_caption": [img_path.stem],  # Use filename as caption
                             "page_idx": 0
                         })
 
@@ -295,13 +296,11 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, m
         all_files.extend(transcript_dir.glob(f"*{ext}"))
     all_files = sorted([f for f in all_files if not f.name.startswith('.')])
 
-    # Initialize multimodal components if needed
-    image_embedder = None
+    # Enable image processing if multimodal mode is active
+    # Note: RAGAnything handles image embedding internally via its config
     if multimodal:
-        from src.core.multimodal import get_image_embedder
-        print("Initializing multimodal image embedder...")
-        image_embedder = get_image_embedder()
-        # Enable image processing in RAG-Anything
+        print("Multimodal mode enabled - images will be processed automatically")
+        # Ensure image processing is enabled (should already be set via config)
         rag.config.enable_image_processing = True
 
     # Get already processed documents
@@ -336,7 +335,7 @@ async def build_rag_parallel(max_transcripts=None, workers=5, source_dir=None, m
 
     # Process all transcripts in parallel
     tasks = [
-        process_single_transcript_parallel(rag, file, semaphore, multimodal, image_embedder)
+        process_single_transcript_parallel(rag, file, semaphore, multimodal)
         for file in transcript_files
     ]
 
@@ -427,13 +426,11 @@ async def build_rag(max_transcripts=None, source_dir=None, multimodal=False):
         all_files.extend(transcript_dir.glob(f"*{ext}"))
     all_files = sorted([f for f in all_files if not f.name.startswith('.')])
 
-    # Initialize multimodal components if needed
-    image_embedder = None
+    # Enable image processing if multimodal mode is active
+    # Note: RAGAnything handles image embedding internally via its config
     if multimodal:
-        from src.core.multimodal import get_image_embedder
-        print("Initializing multimodal image embedder...")
-        image_embedder = get_image_embedder()
-        # Enable image processing in RAG-Anything
+        print("Multimodal mode enabled - images will be processed automatically")
+        # Ensure image processing is enabled (should already be set via config)
         rag.config.enable_image_processing = True
 
     # Get already processed documents
@@ -482,7 +479,8 @@ async def build_rag(max_transcripts=None, source_dir=None, multimodal=False):
                 for img_path in image_paths:
                     content_list.append({
                         "type": "image",
-                        "image_path": str(img_path),
+                        "img_path": str(img_path),  # Fixed: use 'img_path' not 'image_path'
+                        "image_caption": [img_path.stem],  # Use filename as caption
                         "page_idx": 0
                     })
 
